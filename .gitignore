@@ -1,0 +1,83 @@
+
+
+# SECRETS & ENVIRONMENT 
+.env
+.env.*
+!.env.example
+*.local
+secrets.json
+credentials.json
+
+#PYTHON 
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments (backend and ai_service)
+venv/
+env/
+.venv/
+
+#DJANGO 
+*.log
+db.sqlite3
+local_settings.py
+media/
+staticfiles/
+static_root/
+
+
+ FASTAPI / AI SERVICE 
+
+*.pkl
+*.pickle
+*.h5
+*.pt
+*.pth
+*.onnx
+*.bin
+models/
+checkpoints/
+chroma_db/
+*.chroma
+
+# NODE / NEXT.JS 
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+#  DOCKER
+docker-compose.override.yml
+docker-compose.local.yml
+postgres_data/
+
+# TESTING 
+htmlcov/
+.pytest_cache/
+coverage/
+.tox/
+
+# IDE & EDITOR
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+#  CERTIFICATES & KEYS 
+*.pem
+*.key
+*.crt
