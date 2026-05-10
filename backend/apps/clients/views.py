@@ -1,3 +1,157 @@
-from django.shortcuts import render
+from rest_framework import generics, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.utils import timezone
+import httpx
+from django.conf import settings
 
-# Create your views here.
+from .models import Client, ClientAddress, ClientBusiness, ClientIncome
+from apps.kyc.models import KYCDocument, KYCChecklist
+from .serializers import (
+    ClientListSerializer, ClientDetailSerializer,
+    CreateClientSerializer, ClientAddressSerializer,
+    ClientBusinessSerializer, ClientIncomeSerializer,
+    KYCDocumentSerializer, KYCChecklistSerializer
+)
+from apps.users.permissions import IsLoanOfficer, IsAdmin
+
+
+class ClientListCreateView(generics.ListCreateAPIView):
+    queryset = Client.objects.all()
+    permission_classes = [IsLoanOfficer]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return CreateClientSerializer
+        return ClientListSerializer
+
+    def perform_create(self, serializer):
+        client = serializer.save(registered_by=self.request.user)
+        # Auto-create KYC checklist when client is created
+        KYCChecklist.objects.create(client=client)
+
+
+class ClientDetailView(generics.RetrieveUpdateAPIView):
+    queryset = Client.objects.all()
+    serializer_class = ClientDetailSerializer
+    permission_classes = [IsLoanOfficer]
+
+
+class ClientAddressView(generics.CreateAPIView):
+    serializer_class = ClientAddressSerializer
+    permission_classes = [IsLoanOfficer]
+
+    def perform_create(self, serializer):
+        client = Client.objects.get(pk=self.kwargs['client_id'])
+        serializer.save(client=client)
+
+
+class ClientBusinessView(generics.CreateAPIView):
+    serializer_class = ClientBusinessSerializer
+    permission_classes = [IsLoanOfficer]
+
+    def perform_create(self, serializer):
+        client = Client.objects.get(pk=self.kwargs['client_id'])
+        serializer.save(client=client)
+
+
+class ClientIncomeView(generics.CreateAPIView):
+    serializer_class = ClientIncomeSerializer
+    permission_classes = [IsLoanOfficer]
+
+    def perform_create(self, serializer):
+        client = Client.objects.get(pk=self.kwargs['client_id'])
+        serializer.save(client=client)
+
+
+class DocumentUploadView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsLoanOfficer]
+
+    def post(self, request, client_id):
+        client = Client.objects.get(pk=client_id)
+        file = request.FILES.get('file')
+        doc_type = request.data.get('document_type')
+
+        if not file or not doc_type:
+            return Response(
+                {"error": "file and document_type are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        doc = KYCDocument.objects.create(
+            client=client,
+            document_type=doc_type,
+            file=file,
+            file_name=file.name,
+            uploaded_by=request.user
+        )
+        return Response(KYCDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
+
+
+class KYCChecklistUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = KYCChecklistSerializer
+    permission_classes = [IsLoanOfficer]
+
+    def get_object(self):
+        return KYCChecklist.objects.get(client_id=self.kwargs['client_id'])
+
+
+class A1ValidateClientView(APIView):
+    """Trigger A1 agent to validate client data quality."""
+    permission_classes = [IsLoanOfficer]
+
+    def post(self, request, client_id):
+        client = Client.objects.get(pk=client_id)
+        checklist = client.kyc_checklist
+
+        # Build input payload for A1
+        payload = {
+            "client_id": client.id,
+            "client_data": {
+                "nic_number": client.nic_number,
+                "first_name": client.first_name,
+                "last_name": client.last_name,
+                "date_of_birth": str(client.date_of_birth),
+                "gender": client.gender,
+                "phone_primary": client.phone_primary,
+                "addresses": list(client.addresses.values()),
+                "income": {
+                    "monthly_income": str(client.income.monthly_income)
+                } if hasattr(client, 'income') else {}
+            },
+            "kyc_data": {
+                "nic_verified": checklist.nic_verified,
+                "address_verified": checklist.address_verified,
+                "income_verified": checklist.income_verified,
+                "aml_check_done": checklist.aml_check_done,
+            }
+        }
+
+        # Call A1 via FastAPI
+        try:
+            response = httpx.post(
+                f"{settings.AI_SERVICE_URL}/api/a1/validate-client",
+                json=payload,
+                headers={"x-api-key": settings.AI_SERVICE_API_KEY},
+                timeout=10.0
+            )
+            ai_result = response.json()
+        except Exception as e:
+            return Response(
+                {"error": f"AI service unavailable: {str(e)}. Manual review required."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        # Save quality score back to client
+        if ai_result.get("output"):
+            client.data_quality_score = ai_result["output"].get("data_quality_score")
+            client.data_quality_notes = ai_result.get("rationale", "")
+            client.save()
+
+        # Update status to KYC_SUBMITTED
+        client.status = 'KYC_SUBMITTED'
+        client.save()
+
+        return Response(ai_result)

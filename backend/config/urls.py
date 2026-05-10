@@ -1,4 +1,7 @@
+
 from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import path, include
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -19,7 +22,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.users.urls')),
     path('api/users/', include('apps.users.urls_users')),
+    path('api/clients/', include('apps.clients.urls')),
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0)),
     path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
 
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
