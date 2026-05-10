@@ -14,12 +14,12 @@ schema_view = get_schema_view(
     permission_classes=[AllowAny],
 )
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.users.urls')),
-    # path('api/users/', include('apps.users.urls_users')),
+    path('api/users/', include('apps.users.urls_users')),
+    path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0)),
+    path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
 
-    # Swagger docs
-    path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
