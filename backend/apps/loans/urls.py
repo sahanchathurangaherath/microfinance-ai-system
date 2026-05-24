@@ -1,0 +1,16 @@
+from django.urls import path
+from .views import (
+    LoanApplicationListCreateView, LoanApplicationDetailView,
+    SubmitApplicationView, ApplicationStatusView,
+    CashflowCreateView, LoanDocumentUploadView, LoanProductListView
+)
+
+urlpatterns = [
+    path('products/', LoanProductListView.as_view(), name='loan_products'),
+    path('applications/', LoanApplicationListCreateView.as_view(), name='application_list_create'),
+    path('applications/<int:pk>/', LoanApplicationDetailView.as_view(), name='application_detail'),
+    path('applications/<int:pk>/submit/', SubmitApplicationView.as_view(), name='application_submit'),
+    path('applications/<int:pk>/status/', ApplicationStatusView.as_view(), name='application_status'),
+    path('applications/<int:pk>/cashflow/', CashflowCreateView.as_view(), name='cashflow_create'),
+    path('applications/<int:pk>/documents/', LoanDocumentUploadView.as_view(), name='loan_doc_upload'),
+]
