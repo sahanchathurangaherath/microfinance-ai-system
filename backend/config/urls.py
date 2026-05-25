@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/auth/', include('apps.users.urls')),
     path('api/users/', include('apps.users.urls_users')),
     path('api/clients/', include('apps.clients.urls')),
+    path('api/loans/', include('apps.loans.urls')),
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0)),
     path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
 

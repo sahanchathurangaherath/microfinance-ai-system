@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import LoanApplication, CashflowAssessment, LoanDocument, ApplicationStatusHistory, LoanProduct
+from .models import LoanApplication, CashflowAssessment, LoanDocument, ApplicationStatusHistory, LoanProduct, RiskAssessment, CreditMemo
 from apps.clients.serializers import ClientListSerializer
 
 
@@ -79,3 +79,19 @@ class CreateLoanApplicationSerializer(serializers.ModelSerializer):
                 f"Client status is '{client.status}'. Client must be VERIFIED before a loan application can be created."
             )
         return data
+    
+
+class RiskAssessmentSerializer(serializers.ModelSerializer):
+    reviewed_by_name = serializers.CharField(
+        source='reviewed_by.get_full_name', read_only=True
+    )
+
+    class Meta:
+        model = RiskAssessment
+        fields = '__all__'
+
+
+class CreditMemoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CreditMemo
+        fields = '__all__'
