@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from agents.data_collection_agent import DataCollectionAgent
+from agents.risk_assessment_agent import RiskAssessmentAgent
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from decouple import config
 import httpx
 
@@ -37,6 +38,14 @@ class A1ValidateRequest(BaseModel):
     kyc_data: Dict[str, Any]
 
 
+class A2RiskRequest(BaseModel):
+    loan_id: int
+    client_data: Dict[str, Any]
+    loan_data: Dict[str, Any]
+    repayment_history: Optional[Dict[str, Any]] = {}
+
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -63,6 +72,14 @@ def list_agents():
 def validate_client(request: A1ValidateRequest, x_api_key: str = Header(...)):
     verify_api_key(x_api_key)
     agent = DataCollectionAgent()
+    result = agent.run(request.dict())
+    return result
+
+
+@app.post("/api/a2/risk-score")
+def risk_score(request: A2RiskRequest, x_api_key: str = Header(...)):
+    verify_api_key(x_api_key)
+    agent = RiskAssessmentAgent()
     result = agent.run(request.dict())
     return result
 
