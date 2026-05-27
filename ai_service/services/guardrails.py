@@ -1,4 +1,4 @@
-# ai_service/services/guardrails.py
+
 """
 Output validators for every LLM agent.
 If validation fails, the caller triggers Manual Mode — agents never guess.
