@@ -1,93 +1,174 @@
+# ai_service/agents/data_collection_agent.py
+"""
+A1 — Data Collection Agent
+Validates KYC data completeness, consistency, and flags early fraud signals.
+LLM upgrade: reasons about WHY data is suspicious, not just whether it's present.
+"""
+
 from .base_agent import BaseAgent
 from typing import Dict
+from decouple import config
+
+
+USE_LLM = config("A1_USE_LLM", default=False, cast=bool)
 
 
 class DataCollectionAgent(BaseAgent):
-    """
-    A1: Data Collection Agent
-    Validates client profile completeness and generates a data quality score.
-    Does NOT approve or reject clients — only scores and flags missing data.
-    """
 
     def __init__(self):
         super().__init__(agent_id="A1", agent_name="Data Collection Agent")
 
     def run(self, input_data: Dict) -> Dict:
-        client_id = input_data.get("client_id")
-        client = input_data.get("client_data", {})
-        kyc = input_data.get("kyc_data", {})
+        client_id  = input_data.get("client_id")
+        client     = input_data.get("client_data", {})
+        kyc        = input_data.get("kyc_data", {})
 
-        issues = []
-        score = 100.0
-
-        # Required field checks
-        required_fields = ['nic_number', 'first_name', 'last_name', 'date_of_birth',
-                           'gender', 'phone_primary']
-        for field in required_fields:
-            if not client.get(field):
-                issues.append(f"Missing required field: {field}")
-                score -= 10
-
-        # Income check 
-        income = client.get("income", {})
-        if not income:
-            issues.append("No income information provided")
-            score -= 15
+        if USE_LLM:
+            return self._llm_validate(client_id, client, kyc)
         else:
-            if not income.get("monthly_income") or float(income.get("monthly_income", 0)) <= 0:
-                issues.append("Monthly income is zero or missing")
-                score -= 10
+            return self._rule_validate(client_id, client, kyc)
 
-        # --- Address check ---
-        addresses = client.get("addresses", [])
-        if not addresses:
-            issues.append("No address information provided")
-            score -= 10
+   
+    # LLM PATH
 
-        # --- KYC document checks ---
-        if not kyc.get("nic_verified"):
-            issues.append("NIC not verified")
-            score -= 10
 
-        if not kyc.get("address_verified"):
-            issues.append("Address not verified")
-            score -= 5
+    def _llm_validate(self, client_id, client: Dict, kyc: Dict) -> Dict:
+        """
+        LLM-powered KYC validation.
+        Gemini reasons about completeness, consistency, and fraud signals.
+        """
+        import json
+        from services.gemini_client import call_gemini
+        from services.guardrails import validate_a1_output, confidence_requires_manual_review
 
-        if not kyc.get("income_verified"):
-            issues.append("Income not verified")
-            score -= 5
+        SYSTEM_PROMPT = """You are a KYC Data Quality Analyst for a microfinance institution in Sri Lanka.
+Your job is to evaluate client data for completeness, internal consistency, and early fraud signals.
+You ASSIST the Loan Officer — you do NOT approve or reject the client.
+Always respond with valid JSON only. No extra text."""
 
-        if not kyc.get("aml_check_done"):
-            issues.append("AML check not completed")
-            score -= 5
+        USER_PROMPT = f"""Evaluate this client's KYC data:
 
-        # Clamp score to 0-100
-        score = max(0.0, score)
-        confidence = score / 100
+CLIENT DATA:
+{json.dumps(client, indent=2, default=str)}
 
-        # If score is too low, flag for human review
-        if score < 50:
+KYC CHECKLIST DATA:
+{json.dumps(kyc, indent=2, default=str)}
+
+Return ONLY this JSON structure:
+{{
+  "data_quality_score": <float 0-100, overall data completeness and quality>,
+  "missing_critical_fields": ["list of field names that are missing or empty"],
+  "consistency_flags": ["list of any inconsistencies found, e.g. income vs business age mismatch"],
+  "fraud_signals": ["list of any early warning fraud signals, empty list if none"],
+  "confidence": <float 0.0-1.0, your confidence in this assessment>,
+  "rationale": "<2-3 sentence plain English explanation for the Loan Officer>"
+}}"""
+
+        try:
+            output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+        except Exception as e:
+            # Gemini failed — return low confidence to trigger Manual Mode
             return self.low_confidence_response(
                 input_reference=f"client:{client_id}",
-                reason=f"Data quality too low ({score}%). Issues: {'; '.join(issues)}"
+                reason=f"LLM service error: {str(e)}. Manual KYC review required."
+            )
+
+        # Validate output structure
+        from services.guardrails import validate_a1_output
+        is_valid, reason = validate_a1_output(output)
+        if not is_valid:
+            return self.low_confidence_response(
+                input_reference=f"client:{client_id}",
+                reason=f"LLM output failed validation: {reason}. Manual review required."
+            )
+
+        confidence = float(output.get("confidence", 0.5))
+
+        # Low confidence → flag for manual review
+        if confidence_requires_manual_review(confidence):
+            return self.low_confidence_response(
+                input_reference=f"client:{client_id}",
+                reason=f"LLM confidence {round(confidence, 2)} below threshold. Manual KYC review required."
             )
 
         return self.build_response(
             output={
-                "client_id": client_id,
-                "data_quality_score": score,
-                "issues": issues,
-                "can_proceed_to_loan": score >= 70,
-                "recommendation": (
-                    "PROCEED" if score >= 70
-                    else "REVIEW_REQUIRED" if score >= 50
-                    else "REJECT"
-                )
+                "client_id":              client_id,
+                "data_quality_score":     float(output["data_quality_score"]),
+                "missing_critical_fields": output.get("missing_critical_fields", []),
+                "consistency_flags":      output.get("consistency_flags", []),
+                "fraud_signals":          output.get("fraud_signals", []),
             },
             confidence=confidence,
-            rationale=(
-                f"Client profile scored {score}/100. "
-                f"{'No major issues found.' if not issues else 'Issues: ' + '; '.join(issues)}"
-            ),
+            rationale=output.get("rationale", ""),
+            input_reference=f"client:{client_id}"
+        )
+
+    
+    # RULE-BASED PATH (original MVP logic — preserved as fallback)
+
+    def _rule_validate(self, client_id, client: Dict, kyc: Dict) -> Dict:
+        """
+        Original MVP rule-based scoring.
+        Active when A1_USE_LLM=false in .env
+        """
+        score = 0.0
+        missing = []
+        signals = []
+
+        # Identity fields
+        if client.get("nic_number"):        score += 15
+        else:                               missing.append("nic_number")
+        if client.get("first_name"):        score += 5
+        else:                               missing.append("first_name")
+        if client.get("last_name"):         score += 5
+        else:                               missing.append("last_name")
+        if client.get("date_of_birth"):     score += 5
+        else:                               missing.append("date_of_birth")
+
+        # Contact fields
+        if client.get("phone_primary"):     score += 5
+        else:                               missing.append("phone_primary")
+
+        # KYC checklist fields
+        if kyc.get("address_verified"):     score += 10
+        else:                               missing.append("address_verified")
+        if kyc.get("income_verified"):      score += 15
+        else:                               missing.append("income_verified")
+        if kyc.get("id_document_uploaded"): score += 15
+        else:                               missing.append("id_document_uploaded")
+        if kyc.get("income_document_uploaded"): score += 15
+        else:                               missing.append("income_document_uploaded")
+
+        # Business info
+        if client.get("monthly_income"):    score += 10
+        else:                               missing.append("monthly_income"); signals.append("Income data missing")
+
+        score = min(100.0, score)
+
+        confidence = 0.85 if not missing else max(0.4, 0.85 - len(missing) * 0.05)
+
+        rationale = (
+            f"Data quality score: {round(score, 1)}/100. "
+            f"Missing fields: {', '.join(missing) if missing else 'None'}. "
+            f"Signals: {', '.join(signals) if signals else 'None'}."
+        )
+
+        if confidence < 0.5:
+            return self.low_confidence_response(
+                input_reference=f"client:{client_id}",
+                reason="Too many missing fields for reliable assessment."
+            )
+
+        return self.build_response(
+            output={
+                "client_id":               client_id,
+                "data_quality_score":      round(score, 2),
+                "missing_critical_fields": missing,
+                "consistency_flags":       [],
+                "fraud_signals":           signals,
+            },
+            confidence=round(confidence, 2),
+            rationale=rationale,
             input_reference=f"client:{client_id}"
         )
