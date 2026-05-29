@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import LoanApplication, CashflowAssessment, LoanDocument, ApplicationStatusHistory, LoanProduct, RiskAssessment, CreditMemo
+from .models import LoanApplication, CashflowAssessment, LoanDocument, ApplicationStatusHistory, LoanProduct, RiskAssessment, CreditMemo, AIRecommendation
 from apps.clients.serializers import ClientListSerializer
 
 
@@ -94,4 +94,17 @@ class RiskAssessmentSerializer(serializers.ModelSerializer):
 class CreditMemoSerializer(serializers.ModelSerializer):
     class Meta:
         model = CreditMemo
+        fields = '__all__'
+
+
+class AIRecommendationSerializer(serializers.ModelSerializer):
+    reviewed_by_name = serializers.CharField(
+        source='reviewed_by.get_full_name', read_only=True
+    )
+    recommendation_display = serializers.CharField(
+        source='get_recommendation_type_display', read_only=True
+    )
+
+    class Meta:
+        model = AIRecommendation
         fields = '__all__'

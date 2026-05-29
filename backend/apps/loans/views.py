@@ -7,6 +7,8 @@ from django.conf import settings
 import httpx
 from .models import RiskAssessment, RiskScoreHistory, CreditMemo
 from .serializers import RiskAssessmentSerializer, CreditMemoSerializer
+from .models import AIRecommendation, OfficerFeedback
+from .serializers import AIRecommendationSerializer
 
 from .models import LoanApplication, CashflowAssessment, LoanDocument, LoanProduct
 from .serializers import (
@@ -374,3 +376,130 @@ class RiskHistoryView(generics.ListAPIView):
             for h in history
         ]
         return Response(data)
+    
+
+class TriggerRecommendationView(APIView):
+    """
+    Calls A3 after A2 risk assessment is complete.
+    Should be triggered right after TriggerRiskAssessmentView.
+    """
+    permission_classes = [IsLoanOfficer]
+
+    def post(self, request, pk):
+        try:
+            application = LoanApplication.objects.get(pk=pk)
+            risk = application.risk_assessment
+        except (LoanApplication.DoesNotExist, RiskAssessment.DoesNotExist):
+            return Response(
+                {"error": "Risk assessment not found. Run A2 first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        client = application.client
+        income = getattr(client, 'income', None)
+        cashflow = getattr(application, 'cashflow', None)
+
+        payload = {
+            "loan_id": application.id,
+            "risk_score": risk.risk_score,
+            "risk_category": risk.risk_category,
+            "default_signals": risk.default_signals,
+            "kyc_score": client.data_quality_score or 0,
+            "requested_amount": float(application.requested_amount),
+            "monthly_income": float(income.monthly_income) if income else 0,
+            "requested_duration_months": application.requested_duration_months,
+            "debt_to_income_ratio": cashflow.debt_to_income_ratio if cashflow else 0,
+            "has_repayment_history": False,  # Updated in Phase 9
+        }
+
+        try:
+            response = httpx.post(
+                f"{settings.AI_SERVICE_URL}/api/a3/recommendation",
+                json=payload,
+                headers={"x-api-key": settings.AI_SERVICE_API_KEY},
+                timeout=15.0
+            )
+            ai_result = response.json()
+        except Exception as e:
+            return Response(
+                {"error": f"AI service unavailable: {str(e)}"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        output = ai_result.get("output", {})
+
+        AIRecommendation.objects.update_or_create(
+            application=application,
+            defaults={
+                "recommendation_type": output.get("recommendation_type"),
+                "recommended_amount": output.get("recommended_amount"),
+                "recommended_duration_months": output.get("recommended_duration_months"),
+                "explanation": output.get("explanation", ""),
+                "reasons": output.get("reasons", []),
+                "confidence": ai_result.get("confidence", 0),
+                "officer_decision": "PENDING",
+            }
+        )
+
+        return Response({
+            "message": "Recommendation generated.",
+            "recommendation": output.get("recommendation_type"),
+            "explanation": output.get("explanation"),
+            "agent_response": ai_result
+        })
+
+
+class GetRecommendationView(generics.RetrieveAPIView):
+    serializer_class = AIRecommendationSerializer
+    permission_classes = [IsRiskAnalyst]
+
+    def get_object(self):
+        return AIRecommendation.objects.get(application_id=self.kwargs['pk'])
+
+
+class OfficerFeedbackView(APIView):
+    """
+    Officer submits feedback on whether the AI recommendation was helpful.
+    Also used to accept or override the recommendation.
+    """
+    permission_classes = [IsRiskAnalyst]
+
+    def post(self, request, pk):
+        try:
+            rec = AIRecommendation.objects.get(application_id=pk)
+        except AIRecommendation.DoesNotExist:
+            return Response({"error": "Recommendation not found"}, status=404)
+
+        decision = request.data.get("officer_decision")  # ACCEPTED or OVERRIDDEN
+        override_reason = request.data.get("override_reason", "")
+
+        if decision not in ["ACCEPTED", "OVERRIDDEN"]:
+            return Response(
+                {"error": "officer_decision must be ACCEPTED or OVERRIDDEN"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if decision == "OVERRIDDEN" and not override_reason:
+            return Response(
+                {"error": "override_reason is required when overriding an AI recommendation."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        rec.officer_decision = decision
+        rec.officer_override_reason = override_reason
+        rec.reviewed_by = request.user
+        rec.reviewed_at = timezone.now()
+        rec.save()
+
+        # Save feedback
+        OfficerFeedback.objects.create(
+            recommendation=rec,
+            officer=request.user,
+            was_helpful=request.data.get("was_helpful", True),
+            comment=request.data.get("comment", "")
+        )
+
+        return Response({
+            "message": f"Recommendation {decision.lower()} by {request.user.get_full_name()}.",
+            "application_number": rec.application.application_number
+        })

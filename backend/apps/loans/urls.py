@@ -3,7 +3,9 @@ from .views import (
     LoanApplicationListCreateView, LoanApplicationDetailView,
     SubmitApplicationView, ApplicationStatusView,
     CashflowCreateView, LoanDocumentUploadView, LoanProductListView,
-    TriggerRiskAssessmentView, RiskAnalystReviewView, RiskHistoryView
+    TriggerRiskAssessmentView, RiskAnalystReviewView, RiskHistoryView,
+     TriggerRecommendationView, GetRecommendationView, OfficerFeedbackView
+
 )
 
 urlpatterns = [
@@ -17,4 +19,7 @@ urlpatterns = [
      path('applications/<int:pk>/risk-assess/', TriggerRiskAssessmentView.as_view()),
     path('applications/<int:pk>/risk-review/', RiskAnalystReviewView.as_view()),
     path('risk/history/<int:client_id>/', RiskHistoryView.as_view()),
+    path('applications/<int:pk>/recommend/', TriggerRecommendationView.as_view()),
+    path('applications/<int:pk>/recommendation/', GetRecommendationView.as_view()),
+    path('applications/<int:pk>/recommendation/feedback/', OfficerFeedbackView.as_view())
 ]

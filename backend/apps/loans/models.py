@@ -241,3 +241,67 @@ class CreditMemo(models.Model):
 
     class Meta:
         db_table = 'credit_memos'
+
+
+
+class AIRecommendation(models.Model):
+    RECOMMENDATION_CHOICES = [
+        ('RECOMMEND_APPROVAL', 'Recommend Approval'),
+        ('RECOMMEND_REJECTION', 'Recommend Rejection'),
+        ('RECOMMEND_REDUCED_AMOUNT', 'Recommend Reduced Amount'),
+        ('RECOMMEND_MORE_DOCUMENTS', 'Recommend More Documents'),
+        ('RECOMMEND_ESCALATION', 'Recommend Escalation to Manager'),
+    ]
+
+    OFFICER_DECISION_CHOICES = [
+        ('ACCEPTED', 'Accepted AI Recommendation'),
+        ('OVERRIDDEN', 'Overridden by Officer'),
+        ('PENDING', 'Pending Review'),
+    ]
+
+    application = models.OneToOneField(
+        LoanApplication, on_delete=models.CASCADE, related_name='ai_recommendation'
+    )
+    recommendation_type = models.CharField(max_length=40, choices=RECOMMENDATION_CHOICES)
+    recommended_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    recommended_duration_months = models.IntegerField(null=True, blank=True)
+    explanation = models.TextField()             # Plain-language explanation for staff
+    reasons = models.JSONField(default=list)     # List of specific reason strings
+    confidence = models.FloatField()
+
+    # Officer response
+    officer_decision = models.CharField(
+        max_length=20, choices=OFFICER_DECISION_CHOICES, default='PENDING'
+    )
+    officer_override_reason = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='reviewed_recommendations'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.application.application_number} → {self.recommendation_type}"
+
+    class Meta:
+        db_table = 'ai_recommendations'
+
+
+class OfficerFeedback(models.Model):
+    """Stores officer feedback on AI recommendation quality — used to improve A3 over time."""
+    recommendation = models.ForeignKey(
+        AIRecommendation, on_delete=models.CASCADE, related_name='feedback'
+    )
+    officer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    was_helpful = models.BooleanField()
+    comment = models.TextField(blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'officer_feedback'
