@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/loans/', include('apps.loans.urls')),
     path('api/docs/', schema_view.with_ui('swagger', cache_timeout=0)),
     path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0)),
+    path('api/approvals/', include('apps.approvals.urls')),
 
 ]
 
