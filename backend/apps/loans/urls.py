@@ -4,7 +4,9 @@ from .views import (
     SubmitApplicationView, ApplicationStatusView,
     CashflowCreateView, LoanDocumentUploadView, LoanProductListView,
     TriggerRiskAssessmentView, RiskAnalystReviewView, RiskHistoryView,
-     TriggerRecommendationView, GetRecommendationView, OfficerFeedbackView
+    TriggerRecommendationView, GetRecommendationView, OfficerFeedbackView,
+    ReadyForDisbursementView, VerifyDisbursementConditionsView,
+    ProcessDisbursementView, DisbursementReceiptView
 
 )
 
@@ -21,5 +23,9 @@ urlpatterns = [
     path('risk/history/<int:client_id>/', RiskHistoryView.as_view()),
     path('applications/<int:pk>/recommend/', TriggerRecommendationView.as_view()),
     path('applications/<int:pk>/recommendation/', GetRecommendationView.as_view()),
-    path('applications/<int:pk>/recommendation/feedback/', OfficerFeedbackView.as_view())
+    path('applications/<int:pk>/recommendation/feedback/', OfficerFeedbackView.as_view()),
+    path('disbursements/ready/', ReadyForDisbursementView.as_view()),
+    path('disbursements/<int:pk>/conditions/', VerifyDisbursementConditionsView.as_view()),
+    path('disbursements/<int:pk>/process/', ProcessDisbursementView.as_view()),
+    path('disbursements/<int:pk>/receipt/', DisbursementReceiptView.as_view()),
 ]

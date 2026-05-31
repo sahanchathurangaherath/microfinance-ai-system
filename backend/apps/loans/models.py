@@ -305,3 +305,105 @@ class OfficerFeedback(models.Model):
 
     class Meta:
         db_table = 'officer_feedback'
+
+
+class Loan(models.Model):
+    """
+    Active loan record — created only after disbursement is processed.
+    """
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('CLOSED', 'Closed'),
+        ('DEFAULTED', 'Defaulted'),
+        ('WRITTEN_OFF', 'Written Off'),
+        ('RESCHEDULED', 'Rescheduled'),
+    ]
+
+    loan_number = models.CharField(max_length=20, unique=True, blank=True)
+    application = models.OneToOneField(
+        LoanApplication, on_delete=models.PROTECT, related_name='loan'
+    )
+    client = models.ForeignKey(
+        'clients.Client', on_delete=models.PROTECT, related_name='loans'
+    )
+    principal_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    duration_months = models.IntegerField()
+    monthly_installment = models.DecimalField(max_digits=12, decimal_places=2)
+    total_repayable = models.DecimalField(max_digits=12, decimal_places=2)
+    outstanding_balance = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
+    disbursed_at = models.DateTimeField()
+    expected_closure_date = models.DateField()
+    actual_closure_date = models.DateField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.loan_number:
+            last = Loan.objects.order_by('-id').first()
+            next_id = (last.id + 1) if last else 1
+            self.loan_number = f"LN{str(next_id).zfill(7)}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.loan_number} - {self.client} [{self.status}]"
+
+    class Meta:
+        db_table = 'loans'
+
+
+class DisbursementCondition(models.Model):
+    """Pre-disbursement checklist that Finance Staff must verify."""
+    application = models.ForeignKey(
+        LoanApplication, on_delete=models.CASCADE, related_name='disbursement_conditions'
+    )
+    condition_text = models.CharField(max_length=255)
+    is_met = models.BooleanField(default=False)
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = 'disbursement_conditions'
+
+
+class Disbursement(models.Model):
+    """Financial record of the actual disbursement transaction."""
+    METHOD_CHOICES = [
+        ('CASH', 'Cash'),
+        ('BANK_TRANSFER', 'Bank Transfer'),
+        ('MOBILE_MONEY', 'Mobile Money'),
+        ('CHEQUE', 'Cheque'),
+    ]
+
+    application = models.OneToOneField(
+        LoanApplication, on_delete=models.PROTECT, related_name='disbursement'
+    )
+    loan = models.OneToOneField(Loan, on_delete=models.PROTECT, related_name='disbursement_record')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='CASH')
+    reference_number = models.CharField(max_length=100, blank=True)
+    bank_name = models.CharField(max_length=100, blank=True)
+    account_number = models.CharField(max_length=50, blank=True)
+
+    # Authorization
+    authorized_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True,
+        related_name='authorized_disbursements'
+    )
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL, null=True,
+        related_name='processed_disbursements'
+    )
+
+    disbursed_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Disbursement: {self.application.application_number} - LKR {self.amount}"
+
+    class Meta:
+        db_table = 'disbursements'

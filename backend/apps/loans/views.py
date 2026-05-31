@@ -1,23 +1,40 @@
-from rest_framework import generics, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
-from django.utils import timezone
-from django.conf import settings
-import httpx
-from .models import RiskAssessment, RiskScoreHistory, CreditMemo
-from .serializers import RiskAssessmentSerializer, CreditMemoSerializer
-from .models import AIRecommendation, OfficerFeedback
-from .serializers import AIRecommendationSerializer
+# Standard Library
+from decimal import Decimal
 
-from .models import LoanApplication, CashflowAssessment, LoanDocument, LoanProduct
-from .serializers import (
-    LoanApplicationListSerializer, LoanApplicationDetailSerializer,
-    CreateLoanApplicationSerializer, CashflowSerializer,
-    LoanDocumentSerializer, LoanProductSerializer
+# Third-Party
+import httpx
+from dateutil.relativedelta import relativedelta
+from django.conf import settings
+from django.utils import timezone
+from rest_framework import generics, status
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+# Local Apps
+from apps.users.permissions import (
+    IsAdmin, IsBranchManager, IsFinanceStaff, IsLoanOfficer, IsRiskAnalyst
 )
+
+# Local Models
+from .models import (
+    AIRecommendation, CashflowAssessment, CreditMemo, Disbursement,
+    DisbursementCondition, Loan, LoanApplication, LoanDocument, LoanProduct,
+    OfficerFeedback, RiskAssessment, RiskScoreHistory
+)
+
+# Local Serializers
+from .serializers import (
+    AIRecommendationSerializer, CashflowSerializer,
+    CreateLoanApplicationSerializer, CreditMemoSerializer,
+    LoanApplicationDetailSerializer, LoanApplicationListSerializer,
+    LoanDocumentSerializer, LoanProductSerializer,
+    RiskAssessmentSerializer
+)
+
+# Local Utilities
+from .repayment_utils import calculate_monthly_installment, generate_repayment_schedule
 from .utils import log_status_change
-from apps.users.permissions import IsLoanOfficer, IsAdmin, IsRiskAnalyst
 
 
 class LoanProductListView(generics.ListAPIView):
@@ -502,4 +519,214 @@ class OfficerFeedbackView(APIView):
         return Response({
             "message": f"Recommendation {decision.lower()} by {request.user.get_full_name()}.",
             "application_number": rec.application.application_number
+        })
+
+
+
+class ReadyForDisbursementView(generics.ListAPIView):
+    """Finance Staff sees loans that are APPROVED and ready to disburse."""
+    permission_classes = [IsFinanceStaff]
+
+    def get(self, request):
+        applications = LoanApplication.objects.filter(status='APPROVED').select_related(
+            'client', 'approval_workflow'
+        )
+        data = [
+            {
+                "id": app.id,
+                "application_number": app.application_number,
+                "client": f"{app.client.first_name} {app.client.last_name}",
+                "requested_amount": app.requested_amount,
+                "approved_at": app.updated_at,
+            }
+            for app in applications
+        ]
+        return Response(data)
+
+
+class VerifyDisbursementConditionsView(APIView):
+    """Finance Staff verifies pre-disbursement checklist items."""
+    permission_classes = [IsFinanceStaff]
+
+    def get(self, request, pk):
+        conditions = DisbursementCondition.objects.filter(application_id=pk)
+        return Response([
+            {
+                "id": c.id,
+                "condition": c.condition_text,
+                "is_met": c.is_met,
+                "notes": c.notes
+            }
+            for c in conditions
+        ])
+
+    def post(self, request, pk):
+        """Mark a condition as met."""
+        condition_id = request.data.get("condition_id")
+        try:
+            condition = DisbursementCondition.objects.get(id=condition_id, application_id=pk)
+        except DisbursementCondition.DoesNotExist:
+            return Response({"error": "Condition not found"}, status=404)
+
+        condition.is_met = True
+        condition.verified_by = request.user
+        condition.verified_at = timezone.now()
+        condition.notes = request.data.get("notes", "")
+        condition.save()
+
+        return Response({"message": "Condition verified", "condition": condition.condition_text})
+
+
+class ProcessDisbursementView(APIView):
+    """
+    Finance Staff processes the disbursement.
+    Requires: all conditions met, manager authorization.
+    Creates Loan record and generates repayment schedule.
+    """
+    permission_classes = [IsFinanceStaff]
+
+    def post(self, request, pk):
+        try:
+            application = LoanApplication.objects.get(pk=pk)
+        except LoanApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=404)
+
+        if application.status != 'APPROVED':
+            return Response(
+                {"error": "Only APPROVED applications can be disbursed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check all conditions are met
+        unmet = DisbursementCondition.objects.filter(application=application, is_met=False)
+        if unmet.exists():
+            return Response(
+                {
+                    "error": "Not all disbursement conditions have been met.",
+                    "unmet_conditions": [c.condition_text for c in unmet]
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate required fields
+        method = request.data.get("disbursement_method", "CASH")
+        authorized_by_id = request.data.get("authorized_by_id")
+
+        if not authorized_by_id:
+            return Response(
+                {"error": "authorized_by_id (Branch Manager user ID) is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify authorizer is a branch manager
+        from apps.users.models import User
+        try:
+            authorizer = User.objects.get(pk=authorized_by_id, role='branch_manager')
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Invalid authorizer. Must be a Branch Manager."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get interest rate from loan product or default
+        interest_rate = Decimal('18.0')
+        if application.loan_product:
+            interest_rate = application.loan_product.interest_rate
+
+        # Calculate installment
+        monthly_installment, total_repayable = calculate_monthly_installment(
+            principal=application.requested_amount,
+            annual_rate=interest_rate,
+            months=application.requested_duration_months
+        )
+
+        now = timezone.now()
+        closure_date = now.date() + relativedelta(months=application.requested_duration_months)
+
+        # Create Loan record
+        loan = Loan.objects.create(
+            application=application,
+            client=application.client,
+            principal_amount=application.requested_amount,
+            interest_rate=interest_rate,
+            duration_months=application.requested_duration_months,
+            monthly_installment=monthly_installment,
+            total_repayable=total_repayable,
+            outstanding_balance=total_repayable,
+            status='ACTIVE',
+            disbursed_at=now,
+            expected_closure_date=closure_date
+        )
+
+        # Create Disbursement record
+        disbursement = Disbursement.objects.create(
+            application=application,
+            loan=loan,
+            amount=application.requested_amount,
+            method=method,
+            reference_number=request.data.get("reference_number", ""),
+            bank_name=request.data.get("bank_name", ""),
+            account_number=request.data.get("account_number", ""),
+            authorized_by=authorizer,
+            processed_by=request.user,
+            notes=request.data.get("notes", "")
+        )
+
+        # Advance application status
+        log_status_change(
+            application=application,
+            from_status=application.status,
+            to_status='DISBURSED',
+            user=request.user,
+            reason=f"Disbursed LKR {application.requested_amount} via {method}"
+        )
+
+        # Generate repayment schedule
+        try:
+            schedule = generate_repayment_schedule(loan)
+            schedule_created = True
+        except Exception as e:
+            schedule_created = False
+
+        return Response({
+            "message": "Loan disbursed successfully.",
+            "loan_number": loan.loan_number,
+            "disbursement_amount": str(loan.principal_amount),
+            "monthly_installment": str(monthly_installment),
+            "total_repayable": str(total_repayable),
+            "first_due_date": str(now.date() + relativedelta(months=1)),
+            "expected_closure": str(closure_date),
+            "repayment_schedule_created": schedule_created
+        })
+
+
+class DisbursementReceiptView(APIView):
+    """Returns the disbursement receipt for a loan."""
+    permission_classes = [IsFinanceStaff]
+
+    def get(self, request, pk):
+        try:
+            disbursement = Disbursement.objects.get(application_id=pk)
+            loan = disbursement.loan
+        except Disbursement.DoesNotExist:
+            return Response({"error": "Disbursement not found"}, status=404)
+
+        return Response({
+            "receipt": {
+                "loan_number": loan.loan_number,
+                "application_number": disbursement.application.application_number,
+                "client_name": f"{loan.client.first_name} {loan.client.last_name}",
+                "client_nic": loan.client.nic_number,
+                "disbursement_method": disbursement.method,
+                "reference_number": disbursement.reference_number,
+                "principal_amount": str(loan.principal_amount),
+                "interest_rate": f"{loan.interest_rate}% p.a.",
+                "duration": f"{loan.duration_months} months",
+                "monthly_installment": str(loan.monthly_installment),
+                "total_repayable": str(loan.total_repayable),
+                "disbursed_at": disbursement.disbursed_at,
+                "expected_closure": loan.expected_closure_date,
+                "authorized_by": disbursement.authorized_by.get_full_name(),
+                "processed_by": disbursement.processed_by.get_full_name(),
+            }
         })
