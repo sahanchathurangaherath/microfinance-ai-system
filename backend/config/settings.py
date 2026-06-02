@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'apps.kyc',
     'apps.loans',
     'apps.repayments',
+    'apps.collections',
     'apps.approvals',
     'apps.recovery',
     'apps.fraud',
