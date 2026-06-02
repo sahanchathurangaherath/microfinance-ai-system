@@ -38,3 +38,25 @@ def validate_a2_output(output: dict) -> tuple[bool, str]:
 def confidence_requires_manual_review(confidence: float) -> bool:
     """Returns True if the confidence is too low to proceed automatically."""
     return float(confidence) < MIN_CONFIDENCE
+
+VALID_BEHAVIORAL_PATTERNS = {
+    "CONSISTENT_PAYER",
+    "EARLY_DETERIORATION",
+    "SEASONAL_STRESS",
+    "RECOVERING",
+    "CHRONIC_LATE",
+    "FIRST_DEFAULT",
+    "UNKNOWN",
+}
+
+
+def validate_a4_llm_output(output: dict) -> tuple[bool, str]:
+    """Validate A4 LLM behavioural prediction output."""
+    prob = output.get("predicted_default_probability")
+    if prob is None or not (0 <= float(prob) <= 1):
+        return False, "predicted_default_probability missing or out of 0–1 range"
+    if output.get("behavioral_pattern_label") not in VALID_BEHAVIORAL_PATTERNS:
+        return False, f"behavioral_pattern_label is not a valid value"
+    if "recommended_action" not in output or not output["recommended_action"]:
+        return False, "recommended_action is required"
+    return True, ""

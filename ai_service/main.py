@@ -2,8 +2,12 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from agents.data_collection_agent import DataCollectionAgent
 from agents.risk_assessment_agent import RiskAssessmentAgent
+from agents.recommendation_agent import RecommendationAgent
+from agents.monitoring_agent import MonitoringAgent
+from agents.fraud_detection_agent import FraudDetectionAgent
+
 from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional,List
 from decouple import config
 import httpx
 
@@ -46,6 +50,51 @@ class A2RiskRequest(BaseModel):
 
 
 
+class A3RecommendationRequest(BaseModel):
+    loan_id: int
+    risk_score: float
+    risk_category: str
+    default_signals: list = []
+    kyc_score: float = 0
+    requested_amount: float
+    monthly_income: float
+    requested_duration_months: int
+    debt_to_income_ratio: float = 0
+    has_repayment_history: bool = False
+
+
+class InstallmentData(BaseModel):#A4 input structure for repayment monitoring
+    installment_id: int
+    installment_number: int
+    due_date: str
+    amount_due: float
+    outstanding: float
+    status: str
+
+class LoanRepaymentData(BaseModel):#A4 input structure for repayment monitoring
+    loan_id: int
+    loan_number: str
+    installments: List[InstallmentData]
+
+class A4ScanRequest(BaseModel):
+    loans: List[LoanRepaymentData]
+    today: Optional[str] = None
+
+
+class A5FraudRequest(BaseModel):
+    check_type: str = "FULL"
+    client_id: Optional[int] = None
+    loan_id: Optional[int] = None
+    identity_data: Dict[str, Any] = {}
+    application_data: Dict[str, Any] = {}
+    payment_data: Dict[str, Any] = {}
+    kyc_data: Dict[str, Any] = {}
+
+
+
+
+
+
 @app.get("/health")
 def health_check():
     return {
@@ -83,3 +132,25 @@ def risk_score(request: A2RiskRequest, x_api_key: str = Header(...)):
     result = agent.run(request.dict())
     return result
 
+
+@app.post("/api/a3/recommendation")
+def get_recommendation(request: A3RecommendationRequest, x_api_key: str = Header(...)):
+    verify_api_key(x_api_key)
+    agent = RecommendationAgent()
+    result = agent.run(request.dict())
+    return result
+
+@app.post("/api/a4/check-repayments")
+def check_repayments(request: A4ScanRequest, x_api_key: str = Header(...)):
+    verify_api_key(x_api_key)
+    agent = MonitoringAgent()
+    result = agent.run(request.dict())
+    return result
+
+
+@app.post("/api/a5/fraud-check")
+def fraud_check(request: A5FraudRequest, x_api_key: str = Header(...)):
+    verify_api_key(x_api_key)
+    agent = FraudDetectionAgent()
+    result = agent.run(request.dict())
+    return result
