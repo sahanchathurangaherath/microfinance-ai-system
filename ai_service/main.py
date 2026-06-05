@@ -5,6 +5,7 @@ from agents.risk_assessment_agent import RiskAssessmentAgent
 from agents.recommendation_agent import RecommendationAgent
 from agents.monitoring_agent import MonitoringAgent
 from agents.fraud_detection_agent import FraudDetectionAgent
+from agents.communication_agent import CommunicationAgent
 
 from pydantic import BaseModel
 from typing import Dict, Any, Optional,List
@@ -90,6 +91,10 @@ class A5FraudRequest(BaseModel):
     payment_data: Dict[str, Any] = {}
     kyc_data: Dict[str, Any] = {}
 
+class A6DraftRequest(BaseModel):
+    comm_type: str
+    context: Dict[str, Any]
+    channels: List[str] = ["SMS", "EMAIL"]
 
 
 
@@ -152,5 +157,13 @@ def check_repayments(request: A4ScanRequest, x_api_key: str = Header(...)):
 def fraud_check(request: A5FraudRequest, x_api_key: str = Header(...)):
     verify_api_key(x_api_key)
     agent = FraudDetectionAgent()
+    result = agent.run(request.dict())
+    return result
+
+
+@app.post("/api/a6/draft-message")
+def draft_message(request: A6DraftRequest, x_api_key: str = Header(...)):
+    verify_api_key(x_api_key)
+    agent = CommunicationAgent()
     result = agent.run(request.dict())
     return result
