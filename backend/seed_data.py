@@ -357,10 +357,39 @@ def seed_database():
     # ── 7.1 Clean existing seed data ─────────────────────────
     print("\n[1/8] Cleaning existing seeded data...")
     User.objects.filter(is_superuser=False).delete()
-    Client.objects.all().delete()
-    LoanApplication.objects.all().delete()
+    
+    # Delete in dependency order (most dependent first):
+    # Repayment-related objects first (depend on Loan)
+    RepaymentInstallment.objects.all().delete()
+    RepaymentSchedule.objects.all().delete()
+    
+    # Approval workflow objects (may depend on LoanApplication)
+    ApprovalDecision.objects.all().delete()
+    ApprovalWorkflow.objects.all().delete()
+    
+    # Assessment and recommendation objects (depend on LoanApplication)
+    RiskAssessment.objects.all().delete()
+    CashflowAssessment.objects.all().delete()
+    AIRecommendation.objects.all().delete()
+    ApplicationStatusHistory.objects.all().delete()
+    
+    # KYC objects (depend on Client)
+    KYCDocument.objects.all().delete()
+    KYCChecklist.objects.all().delete()
+    
+    # Then delete Loan and LoanApplication (depend on Client)
     Loan.objects.all().delete()
+    LoanApplication.objects.all().delete()
+    
+    # Then LoanProduct (no dependencies)
     LoanProduct.objects.all().delete()
+    
+    # Finally Client and related models (leaves must be deleted first)
+    ClientIncome.objects.all().delete()
+    ClientBusiness.objects.all().delete()
+    ClientAddress.objects.all().delete()
+    Client.objects.all().delete()
+    
     print("     ✓ Existing data cleared")
 
     # ── 7.2 Create Staff Users ────────────────────────────────
@@ -900,6 +929,4 @@ def seed_database():
 
 if __name__ == '__main__':
     seed_database()
-else:
-    # Called via manage.py shell < seed_data.py
-    seed_database()
+# When imported as a module via management command, the command handles calling seed_database()

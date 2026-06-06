@@ -106,6 +106,9 @@ class TriggerFraudCheckView(APIView):
                 ai_rationale=ai_result.get("rationale", ""),
                 detected_signals=output.get("signals", []),
                 ai_confidence=ai_result.get("confidence", 0),
+                prosecutor_findings=output.get("prosecutor_findings", []),
+                defense_findings=output.get("defense_findings", []),
+                investigation_focus=output.get("investigation_focus", ""),
             )
 
         return Response({

@@ -27,6 +27,9 @@ class DelinquencyCase(models.Model):
     total_overdue_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     days_overdue = models.IntegerField(default=0)
     overdue_installments_count = models.IntegerField(default=0)
+    predicted_default_probability = models.FloatField(null=True, blank=True)
+    behavioral_pattern_label      = models.CharField(max_length=30, blank=True)
+    llm_recommended_action        = models.TextField(blank=True)
 
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,

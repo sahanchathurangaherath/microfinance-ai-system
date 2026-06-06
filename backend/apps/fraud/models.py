@@ -60,6 +60,11 @@ class FraudAlert(models.Model):
     )
     investigation_notes = models.TextField(blank=True)
 
+    
+    prosecutor_findings   = models.JSONField(default=list, blank=True)
+    defense_findings      = models.JSONField(default=list, blank=True)
+    investigation_focus   = models.TextField(blank=True)
+
     def __str__(self):
         return f"[{self.severity}] {self.alert_type} - {self.status}"
 

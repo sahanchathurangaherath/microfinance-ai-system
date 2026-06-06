@@ -129,7 +129,7 @@ class RejectNotificationView(APIView):
 class SendNotificationView(APIView):
     """
     Sends an APPROVED notification via SMS or Email.
-    In production: integrate Twilio (SMS) and Gmail SMTP (Email).
+  
     """
     permission_classes = [IsLoanOfficer]
 
