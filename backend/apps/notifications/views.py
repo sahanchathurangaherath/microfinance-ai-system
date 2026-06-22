@@ -28,6 +28,23 @@ class DraftNotificationView(APIView):
         reference_type = request.data.get("reference_type", "")
         reference_id = request.data.get("reference_id")
 
+        if client_id:
+            try:
+                from apps.clients.models import Client
+                client_obj = Client.objects.get(pk=client_id)
+                context["preferred_language"] = client_obj.preferred_language
+                context["missed_payments_count"] = (
+                    client_obj.loans
+                    .filter(status='ACTIVE')
+                    .prefetch_related('schedule__installments')
+                    .first()
+                    .schedule.installments.filter(status__in=['OVERDUE', 'PARTIAL'])
+                    .count()
+                    if client_obj.loans.filter(status='ACTIVE').exists() else 0
+                )
+            except Exception:
+                pass
+
         # Call A6
         try:
             response = httpx.post(
