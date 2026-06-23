@@ -48,13 +48,14 @@ class CreateCasesFromA4View(APIView):
                     "days_overdue": case_data.get("days_overdue", 0),
                     "total_overdue_amount": total_overdue,
                     "overdue_installments_count": overdue_insts.count(),
-                    "status": "OPEN" if was_created else case.status,
                     "predicted_default_probability": case_data.get("predicted_default_probability"),
                     "behavioral_pattern_label": case_data.get("behavioral_pattern_label", ""),
                     "llm_recommended_action": case_data.get("llm_recommended_action", ""),
                 }
             )
             if was_created:
+                case.status = "OPEN"
+                case.save()
                 created += 1
             else:
                 updated += 1

@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from django.utils import timezone
+from datetime import timedelta
 import httpx
 from django.conf import settings
 from django.db.models import Count
@@ -44,7 +45,7 @@ class TriggerFraudCheckView(APIView):
                 app = LoanApplication.objects.get(pk=loan_id)
                 recent_apps = LoanApplication.objects.filter(
                     client=app.client,
-                    created_at__gte=timezone.now() - timezone.timedelta(days=30)
+                    created_at__gte=timezone.now() - timedelta(days=30)
                 ).count()
                 income = getattr(app.client, 'income', None)
                 application_data = {

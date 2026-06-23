@@ -53,7 +53,16 @@ class ClientBusinessView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         client = Client.objects.get(pk=self.kwargs['client_id'])
-        serializer.save(client=client)
+        # Use get_or_create to prevent duplicate OneToOne relation
+        business, created = ClientBusiness.objects.get_or_create(
+            client=client,
+            defaults={field: serializer.validated_data.get(field) for field in serializer.validated_data}
+        )
+        if not created:
+            # Update existing record
+            for field, value in serializer.validated_data.items():
+                setattr(business, field, value)
+            business.save()
 
 
 class ClientIncomeView(generics.CreateAPIView):
@@ -62,7 +71,16 @@ class ClientIncomeView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         client = Client.objects.get(pk=self.kwargs['client_id'])
-        serializer.save(client=client)
+        # Use get_or_create to prevent duplicate OneToOne relation
+        income, created = ClientIncome.objects.get_or_create(
+            client=client,
+            defaults={field: serializer.validated_data.get(field) for field in serializer.validated_data}
+        )
+        if not created:
+            # Update existing record
+            for field, value in serializer.validated_data.items():
+                setattr(income, field, value)
+            income.save()
 
 
 class DocumentUploadView(APIView):

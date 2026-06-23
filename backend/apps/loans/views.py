@@ -1,15 +1,19 @@
 # Standard Library
 from decimal import Decimal
+import logging
 
 # Third-Party
 import httpx
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+logger = logging.getLogger(__name__)
 
 # Local Apps
 from apps.users.permissions import (
@@ -174,9 +178,14 @@ class CashflowCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         application = LoanApplication.objects.get(pk=self.kwargs['pk'])
-        cashflow = serializer.save(application=application)
-        cashflow.calculate_ratios()
-        cashflow.save()
+        # Use update_or_create to handle duplicate OneToOne field gracefully
+        cashflow, created = CashflowAssessment.objects.update_or_create(
+            application=application,
+            defaults=serializer.validated_data
+        )
+        if created:
+            cashflow.calculate_ratios()
+            cashflow.save()
 
 
 class LoanDocumentUploadView(APIView):
@@ -582,9 +591,11 @@ class ProcessDisbursementView(APIView):
     Finance Staff processes the disbursement.
     Requires: all conditions met, manager authorization.
     Creates Loan record and generates repayment schedule.
+    Wrapped in transaction.atomic to ensure atomicity.
     """
     permission_classes = [IsFinanceStaff]
 
+    @transaction.atomic
     def post(self, request, pk):
         try:
             application = LoanApplication.objects.get(pk=pk)
@@ -682,11 +693,16 @@ class ProcessDisbursementView(APIView):
         )
 
         # Generate repayment schedule
+        schedule_created = True
+        schedule_error = None
         try:
             schedule = generate_repayment_schedule(loan)
-            schedule_created = True
         except Exception as e:
             schedule_created = False
+            schedule_error = str(e)
+            logger.error(f"Failed to generate repayment schedule for loan {loan.id}: {schedule_error}")
+            # Re-raise to trigger transaction rollback on critical error
+            raise
 
         return Response({
             "message": "Loan disbursed successfully.",

@@ -95,9 +95,12 @@ class PaymentReceipt(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.receipt_number:
-            last = PaymentReceipt.objects.order_by('-id').first()
-            next_id = (last.id + 1) if last else 1
-            self.receipt_number = f"RCP{str(next_id).zfill(8)}"
+            from django.db import transaction
+            with transaction.atomic():
+                # Acquire lock on last record to prevent race condition
+                last = PaymentReceipt.objects.select_for_update().order_by('-id').first()
+                next_id = (last.id + 1) if last else 1
+                self.receipt_number = f"RCP{str(next_id).zfill(8)}"
         super().save(*args, **kwargs)
 
     class Meta:

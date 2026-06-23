@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from django.utils import timezone
+from django.db import transaction
 from decimal import Decimal
 import httpx
 from django.conf import settings
@@ -55,9 +56,16 @@ class RepaymentScheduleView(APIView):
 
 
 class PostPaymentView(APIView):
-    """Finance Staff posts a payment against a specific installment."""
+    """Finance Staff posts a payment against a specific installment.
+    Wrapped in transaction.atomic to ensure atomicity across:
+    - Payment creation
+    - Installment status update
+    - Loan balance update
+    - Receipt generation
+    """
     permission_classes = [IsFinanceStaff]
 
+    @transaction.atomic
     def post(self, request):
         loan_id = request.data.get("loan_id")
         installment_id = request.data.get("installment_id")

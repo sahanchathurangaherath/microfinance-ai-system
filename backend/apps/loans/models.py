@@ -30,6 +30,7 @@ class LoanApplication(models.Model):
         ('MANAGER_REVIEW', 'Manager Review'),
         ('COMMITTEE_REVIEW', 'Committee Review'),
         ('APPROVED', 'Approved'),
+        ('DISBURSED', 'Disbursed'),
         ('REJECTED', 'Rejected'),
         ('MORE_INFO_REQUIRED', 'More Information Required'),
         ('CANCELLED', 'Cancelled'),
@@ -81,9 +82,12 @@ class LoanApplication(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.application_number:
-            last = LoanApplication.objects.order_by('-id').first()
-            next_id = (last.id + 1) if last else 1
-            self.application_number = f"LA{str(next_id).zfill(7)}"
+            from django.db import transaction
+            with transaction.atomic():
+                # Acquire lock on last record to prevent race condition
+                last = LoanApplication.objects.select_for_update().order_by('-id').first()
+                next_id = (last.id + 1) if last else 1
+                self.application_number = f"LA{str(next_id).zfill(7)}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -339,9 +343,12 @@ class Loan(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.loan_number:
-            last = Loan.objects.order_by('-id').first()
-            next_id = (last.id + 1) if last else 1
-            self.loan_number = f"LN{str(next_id).zfill(7)}"
+            from django.db import transaction
+            with transaction.atomic():
+                # Acquire lock on last record to prevent race condition
+                last = Loan.objects.select_for_update().order_by('-id').first()
+                next_id = (last.id + 1) if last else 1
+                self.loan_number = f"LN{str(next_id).zfill(7)}"
         super().save(*args, **kwargs)
 
     def __str__(self):

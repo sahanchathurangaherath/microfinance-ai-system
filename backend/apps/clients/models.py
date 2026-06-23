@@ -58,9 +58,12 @@ class Client(models.Model):
     def save(self, *args, **kwargs):
         # Auto-generate client number before first save
         if not self.client_number:
-            last = Client.objects.order_by('-id').first()
-            next_id = (last.id + 1) if last else 1
-            self.client_number = f"CLT{str(next_id).zfill(6)}"
+            from django.db import transaction
+            with transaction.atomic():
+                # Acquire lock on last record to prevent race condition
+                last = Client.objects.select_for_update().order_by('-id').first()
+                next_id = (last.id + 1) if last else 1
+                self.client_number = f"CLT{str(next_id).zfill(6)}"
         super().save(*args, **kwargs)
 
     def __str__(self):
