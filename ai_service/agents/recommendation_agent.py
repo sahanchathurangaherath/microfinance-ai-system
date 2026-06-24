@@ -55,12 +55,16 @@ class RecommendationAgent(BaseAgent):
         # Load few-shot examples if available
         few_shot_text = ""
         examples_path = os.path.join(
-            os.path.dirname(__file__), "..", "data", "recommendation_examples.json"
+            os.path.dirname(__file__), "data", "recommendation_examples.json"
         )
         if os.path.exists(examples_path):
-            with open(examples_path, "r") as f:
-                examples = json.load(f)
-            few_shot_text = "\n\nPAST DECISION EXAMPLES:\n" + json.dumps(examples[:5], indent=2)
+            try:
+                with open(examples_path, "r") as f:
+                    examples = json.load(f)
+                if examples:
+                    few_shot_text = "\n\nPAST DECISION EXAMPLES:\n" + json.dumps(examples[:5], indent=2)
+            except json.JSONDecodeError:
+                few_shot_text = ""
 
         SYSTEM_PROMPT = """You are a Loan Recommendation Assistant for a microfinance institution in Sri Lanka.
 You assist officers — you do NOT approve or reject loans. Your output is advisory only.
@@ -110,7 +114,6 @@ Return ONLY this JSON:
                 reason=f"LLM service error: {str(e)}. Manual recommendation review required."
             )
 
-        from services.guardrails import validate_a3_output
         is_valid, reason = validate_a3_output(output)
         if not is_valid:
             return self.low_confidence_response(

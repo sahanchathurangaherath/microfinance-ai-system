@@ -113,6 +113,21 @@ def validate_a5_output(output: dict) -> tuple[bool, str]:
     return True, ""
 
 
+def validate_a3_output(output: dict) -> tuple[bool, str]:
+    """Validate A3 recommendation output."""
+    rec_type = output.get("recommendation_type")
+    valid_types = {"APPROVE", "REJECT", "CONDITIONAL_APPROVE", "REDUCE_AMOUNT", "MANUAL_REVIEW"}
+    if rec_type not in valid_types:
+        return False, f"recommendation_type must be one of {valid_types}"
+    confidence = output.get("confidence")
+    if confidence is None or not (0 <= float(confidence) <= 1):
+        return False, "confidence missing or out of 0–1 range"
+    explanation = output.get("explanation")
+    if not explanation or not isinstance(explanation, str) or not explanation.strip():
+        return False, "explanation must be a non-empty string"
+    return True, ""
+
+
 def validate_a6_output(output: dict) -> tuple[bool, str]:
     """Validate A6 LLM message drafts."""
     drafts = output.get("drafts", [])

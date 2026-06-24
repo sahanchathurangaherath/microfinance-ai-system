@@ -62,6 +62,7 @@ class A3RecommendationRequest(BaseModel):
     requested_duration_months: int
     debt_to_income_ratio: float = 0
     has_repayment_history: bool = False
+    ai_rationale: str = ""
 
 
 class InstallmentData(BaseModel):#A4 input structure for repayment monitoring

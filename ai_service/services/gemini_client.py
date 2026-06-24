@@ -16,12 +16,11 @@ _client = genai.Client(api_key=_API_KEY)
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def call_gemini(system_prompt: str, user_prompt: str) -> tuple:
+def call_gemini(system_prompt: str, user_prompt: str) -> dict:
     """
-    Call Gemini and return parsed JSON output with usage metadata.
+    Call Gemini and return parsed JSON output.
     Retries up to 3 times on failure with exponential backoff.
-    Returns: (parsed_json_output, usage_metadata_dict)
-    usage_metadata contains: prompt_tokens, completion_tokens, model_used
+    Returns: parsed_json_output
     Raises ValueError if output cannot be parsed as JSON.
     """
     response = _client.models.generate_content(
@@ -59,6 +58,6 @@ def call_gemini(system_prompt: str, user_prompt: str) -> tuple:
             "model_used": _MODEL_NAME,
         }
     except Exception:
-        usage = {"prompt_tokens": 0, "completion_tokens": 0, "model_used": _MODEL_NAME}
+        pass
 
-    return parsed, usage
+    return parsed
