@@ -4,21 +4,19 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from .models import User, UserActivityLog
 from .serializers import (
     UserSerializer, CreateUserSerializer,
     UpdateUserSerializer, UserActivityLogSerializer
 )
 from .permissions import IsAdmin
+from apps.audit.utils import log_action, get_client_ip
+from apps.audit.models import LoginAttempt, PermissionChangeLog
 
 
-def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        return x_forwarded_for.split(',')[0]
-    return request.META.get('REMOTE_ADDR')
-
-
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='dispatch')
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -29,13 +27,24 @@ class LoginView(APIView):
         user = authenticate(username=username, password=password)
 
         if not user:
-            # Log failed attempt
-            UserActivityLog.objects.create(
-                user=User.objects.filter(username=username).first(),
-                action='FAILED_LOGIN',
+            # Log failed attempt to LoginAttempt table
+            LoginAttempt.objects.create(
+                username_attempted=username,
                 ip_address=get_client_ip(request),
-                detail=f"Failed login attempt for username: {username}"
-            ) if User.objects.filter(username=username).exists() else None
+                success=False,
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                failure_reason="Invalid credentials"
+            )
+            
+            # Log failed attempt to AuditLog if user exists
+            if User.objects.filter(username=username).exists():
+                user_obj = User.objects.get(username=username)
+                UserActivityLog.objects.create(
+                    user=user_obj,
+                    action='FAILED_LOGIN',
+                    ip_address=get_client_ip(request),
+                    detail=f"Failed login attempt for username: {username}"
+                )
 
             return Response(
                 {"error": "Invalid credentials"},
@@ -51,12 +60,30 @@ class LoginView(APIView):
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
 
-        # Log successful login
+        # Log successful login to LoginAttempt table
+        LoginAttempt.objects.create(
+            username_attempted=username,
+            ip_address=get_client_ip(request),
+            success=True,
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
+        
+        # Log successful login to audit trail
         UserActivityLog.objects.create(
             user=user,
             action='LOGIN',
             ip_address=get_client_ip(request),
             detail="Successful login"
+        )
+        
+        # Log to audit log with structured data
+        log_action(
+            user=user,
+            action_type='LOGIN',
+            model_name='User',
+            object_id=str(user.id),
+            description=f"User {user.username} logged in",
+            request=request
         )
 
         return Response({
@@ -87,6 +114,16 @@ class LogoutView(APIView):
                 user=request.user,
                 action='LOGOUT',
                 ip_address=get_client_ip(request),
+            )
+            
+            # Log logout to audit trail
+            log_action(
+                user=request.user,
+                action_type='LOGOUT',
+                model_name='User',
+                object_id=str(request.user.id),
+                description=f"User {request.user.username} logged out",
+                request=request
             )
 
             return Response({"message": "Logged out successfully"})
@@ -120,10 +157,55 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
             return UpdateUserSerializer
         return UserSerializer
 
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+        old_role = user.role
+        
+        # Perform the update
+        response = super().update(request, *args, **kwargs)
+        
+        # Log role changes
+        if 'role' in request.data and old_role != request.data['role']:
+            PermissionChangeLog.objects.create(
+                changed_by=request.user,
+                target_user=user,
+                old_role=old_role,
+                new_role=request.data['role'],
+                reason=request.data.get('change_reason', '')
+            )
+            
+            # Also log to main audit trail
+            log_action(
+                user=request.user,
+                action_type='PERMISSION_CHANGE',
+                model_name='User',
+                object_id=str(user.id),
+                description=f"Role changed from {old_role} to {request.data['role']} for user {user.username}",
+                request=request,
+                extra_data={
+                    'old_role': old_role,
+                    'new_role': request.data['role'],
+                    'reason': request.data.get('change_reason', '')
+                }
+            )
+        
+        return response
+
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()
         user.is_active = False  # Soft delete — never hard delete users
         user.save()
+        
+        # Log user deactivation
+        log_action(
+            user=request.user,
+            action_type='DELETE',
+            model_name='User',
+            object_id=str(user.id),
+            description=f"User {user.username} deactivated",
+            request=request
+        )
+        
         return Response({"message": "User deactivated"}, status=status.HTTP_200_OK)
 
 

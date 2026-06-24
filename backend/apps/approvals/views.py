@@ -9,6 +9,7 @@ from .serializers import ApprovalWorkflowSerializer, ApprovalDecisionSerializer
 from apps.loans.models import LoanApplication
 from apps.loans.utils import log_status_change
 from apps.users.permissions import IsRiskAnalyst, IsBranchManager, IsCreditCommittee, IsAdmin
+from apps.audit.utils import log_action, log_human_decision
 
 
 #COMMITTEE THRESHOLD 
@@ -120,6 +121,34 @@ class RiskAnalystDecisionView(APIView):
             ai_recommendation_followed=ai_followed,
             override_reason=override_reason,
         )
+        
+        # Log human decision
+        ai_recommendation = getattr(
+            getattr(application, 'risk_assessment', None),
+            'recommendation_type', ''
+        )
+        log_human_decision(
+            officer=request.user,
+            decision_type='LOAN_APPROVAL',
+            reference_model='LoanApplication',
+            reference_id=application.id,
+            decision=decision_value,
+            reason=comments,
+            ai_recommendation=ai_recommendation,
+            followed_ai=ai_followed,
+            override_justification=override_reason
+        )
+        
+        # Log to main audit trail
+        prev_status = application.status
+        log_action(
+            user=request.user,
+            action_type='APPROVAL',
+            model_name='LoanApplication',
+            object_id=str(application.id),
+            description=f"Risk Analyst decision: {decision_value} by {request.user.role}",
+            request=request
+        )
 
         if decision_value == "MORE_INFO":
             workflow.status = 'MORE_INFO_REQUIRED'
@@ -189,6 +218,36 @@ class BranchManagerDecisionView(APIView):
             comments=comments,
             ai_recommendation_followed=ai_followed,
             override_reason=override_reason,
+        )
+        
+        # Log human decision
+        ai_recommendation = getattr(
+            getattr(application, 'risk_assessment', None),
+            'recommendation_type', ''
+        )
+        log_human_decision(
+            officer=request.user,
+            decision_type='LOAN_APPROVAL',
+            reference_model='LoanApplication',
+            reference_id=application.id,
+            decision=decision_value,
+            reason=comments,
+            ai_recommendation=ai_recommendation,
+            followed_ai=ai_followed,
+            override_justification=override_reason
+        )
+        
+        # Log to main audit trail
+        prev_status = application.status
+        log_action(
+            user=request.user,
+            action_type='APPROVAL',
+            model_name='LoanApplication',
+            object_id=str(application.id),
+            description=f"Manager decision: {decision_value} by {request.user.role}",
+            status_before=prev_status,
+            status_after=decision_value,
+            request=request
         )
 
         if decision_value == "APPROVED":
