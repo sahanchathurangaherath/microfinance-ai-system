@@ -25,7 +25,7 @@ class FraudDetectionAgent(BaseAgent):
 
     def run(self, input_data: Dict) -> Dict:
         """
-        Step 1 (always): Rule-based 9-signal check — fast, < 2 seconds.
+        Step 1 (always): Rule-based 8-signal check — fast, < 2 seconds.
         Step 2 (optional): LLM debate second-pass — refines verdict.
         """
         client_id = input_data.get("client_id")
@@ -131,7 +131,7 @@ Your output recommends investigation focus only.
 
 Return ONLY this JSON:
 {{
-  "fraud_risk_score": <float 0-100, your refined score — can only equal or be higher than {rule_output['fraud_risk_score']}>,
+  "fraud_risk_score": <float 0-100, your refined score based on prosecutor and defense analysis>,
   "severity": "<LOW|MEDIUM|HIGH|CRITICAL>",
   "prosecutor_findings": ["key fraud evidence point 1", "point 2"],
   "defense_findings": ["innocent explanation 1", "explanation 2"],
@@ -146,15 +146,17 @@ Return ONLY this JSON:
             # Silent fallback — rule-based output preserved unchanged
             return rule_output, existing_rationale
 
-        from services.guardrails import validate_a5_output
         is_valid, reason = validate_a5_output(output)
         if not is_valid:
             # Guardrail rejected — rule-based output preserved
             return rule_output, existing_rationale
 
-        # Hard rule: LLM refined score can only equal or raise severity
+        # Weighted average fraud scoring: balance rule-based detection with LLM debate analysis
+        # Rule-based: 50% (deterministic, auditable)
+        # LLM refined: 50% (includes prosecutor and defense perspectives, allows score to be lowered)
         llm_score = float(output["fraud_risk_score"])
-        final_score = max(rule_output["fraud_risk_score"], llm_score)
+        final_score = (rule_output["fraud_risk_score"] * 0.5) + (llm_score * 0.5)
+        final_score = min(100.0, max(0.0, final_score))  # Clamp to [0, 100]
 
         rule_output["fraud_risk_score"]     = round(final_score, 2)
         rule_output["severity"]             = self._severity(final_score)

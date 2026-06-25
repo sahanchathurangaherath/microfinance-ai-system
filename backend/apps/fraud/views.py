@@ -215,7 +215,13 @@ class CloseAlertView(APIView):
                 reason=action_reason,
             )
 
-        alert.status = 'CONFIRMED' if outcome == 'CONFIRMED' else 'CLEARED'
+        if outcome == 'CONFIRMED':
+            alert.status = 'CONFIRMED'
+        elif outcome == 'CLEARED':
+            alert.status = 'CLEARED'
+        else:  # INCONCLUSIVE
+            alert.status = 'CLOSED'
+        
         alert.investigation_notes = findings
         alert.save()
 

@@ -33,15 +33,17 @@ class DraftNotificationView(APIView):
                 from apps.clients.models import Client
                 client_obj = Client.objects.get(pk=client_id)
                 context["preferred_language"] = client_obj.preferred_language
-                context["missed_payments_count"] = (
-                    client_obj.loans
-                    .filter(status='ACTIVE')
-                    .prefetch_related('schedule__installments')
-                    .first()
-                    .schedule.installments.filter(status__in=['OVERDUE', 'PARTIAL'])
-                    .count()
-                    if client_obj.loans.filter(status='ACTIVE').exists() else 0
-                )
+                
+                # BUG-BE-13: Break unsafe method chain into guarded steps
+                missed_payments_count = 0
+                active_loan = client_obj.loans.filter(status='ACTIVE').prefetch_related('schedule__installments').first()
+                if active_loan is not None and hasattr(active_loan, 'schedule'):
+                    schedule = active_loan.schedule
+                    if schedule is not None:
+                        missed_payments_count = schedule.installments.filter(
+                            status__in=['OVERDUE', 'PARTIAL']
+                        ).count()
+                context["missed_payments_count"] = missed_payments_count
             except Exception:
                 pass
 

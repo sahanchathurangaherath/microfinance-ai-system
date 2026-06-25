@@ -74,7 +74,6 @@ Return ONLY this JSON structure:
             )
 
         # Validate output structure
-        from services.guardrails import validate_a1_output
         is_valid, reason = validate_a1_output(output)
         if not is_valid:
             return self.low_confidence_response(

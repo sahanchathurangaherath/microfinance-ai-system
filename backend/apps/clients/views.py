@@ -166,8 +166,7 @@ class A1ValidateClientView(APIView):
         if ai_result.get("output"):
             client.data_quality_score = ai_result["output"].get("data_quality_score")
             client.data_quality_notes = ai_result.get("rationale", "")
-            client.save()
-
+        
         # Update status to KYC_SUBMITTED
         client.status = 'KYC_SUBMITTED'
         client.save()

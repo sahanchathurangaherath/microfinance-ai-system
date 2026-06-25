@@ -222,7 +222,7 @@ class BranchManagerDecisionView(APIView):
         
         # Log human decision
         ai_recommendation = getattr(
-            getattr(application, 'risk_assessment', None),
+            getattr(application, 'ai_recommendation', None),
             'recommendation_type', ''
         )
         log_human_decision(

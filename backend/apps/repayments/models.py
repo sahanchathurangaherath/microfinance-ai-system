@@ -43,7 +43,7 @@ class RepaymentInstallment(models.Model):
     notes = models.TextField(blank=True)
 
     def save(self, *args, **kwargs):
-        if not self.outstanding:
+        if self.outstanding is None:
             self.outstanding = self.amount_due - self.amount_paid
         super().save(*args, **kwargs)
 

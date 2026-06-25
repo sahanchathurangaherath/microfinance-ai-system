@@ -29,10 +29,10 @@ class MonitoringAgent(BaseAgent):
         today_str = input_data.get("today", str(date.today()))
         today     = date.fromisoformat(today_str)
 
-        overdue_cases  = []
-        healthy_count  = 0
-        warning_count  = 0
-        critical_count = 0
+        overdue_cases     = []
+        early_overdue_count = 0
+        warning_count     = 0
+        critical_count    = 0
 
         for loan in loans:
             loan_id     = loan.get("loan_id")
@@ -52,9 +52,9 @@ class MonitoringAgent(BaseAgent):
                 bucket       = self._classify_bucket(days_overdue)
                 severity     = self._severity(days_overdue)
 
-                if severity == "HEALTHY":   healthy_count  += 1
-                elif severity == "WARNING": warning_count  += 1
-                else:                       critical_count += 1
+                if severity == "EARLY_OVERDUE": early_overdue_count += 1
+                elif severity == "WARNING":  warning_count  += 1
+                else:                        critical_count += 1
 
                 case = {
                     "loan_id":            loan_id,
@@ -89,6 +89,9 @@ class MonitoringAgent(BaseAgent):
             f"Buckets: {warning_count} warning (8–30 days), {critical_count} critical (>30 days)."
         )
 
+        # Calculate confidence dynamically based on data quality
+        confidence = self._calculate_confidence(total_loans, len(overdue_cases))
+
         return self.build_response(
             output={
                 "scan_date":                today_str,
@@ -98,17 +101,36 @@ class MonitoringAgent(BaseAgent):
                 "portfolio_at_risk_percent": at_risk_rate,
                 "llm_prediction_applied":   USE_LLM,
                 "summary": {
-                    "healthy":             healthy_count,
-                    "warning_1_30_days":   warning_count,
-                    "critical_over_30_days": critical_count,
+                    "early_overdue_1_7_days": early_overdue_count,
+                    "warning_8_30_days":      warning_count,
+                    "critical_over_30_days":  critical_count,
                 }
             },
-            confidence=0.98,
+            confidence=confidence,
             rationale=rationale,
             input_reference=f"portfolio_scan:{today_str}"
         )
 
    
+    # HELPER METHODS
+
+    def _calculate_confidence(self, total_loans: int, overdue_cases_count: int) -> float:
+        """
+        Calculate confidence dynamically based on data quality.
+        - Full data: 0.98 (comprehensive portfolio scan)
+        - Partial data (< 5 loans): reduce confidence proportionally
+        - No data: 0.70 (insufficient basis for conclusions)
+        """
+        if total_loans == 0:
+            return 0.70  # No data to analyze
+        elif total_loans < 5:
+            # Insufficient portfolio size — reduce confidence
+            # Confidence = 0.70 + (loans/5) * 0.28 gives range [0.70, 0.98]
+            return 0.70 + (total_loans / 5.0) * 0.28
+        else:
+            # Comprehensive data — full confidence
+            return 0.98
+
     # LLM PREDICTION LAYER
 
     def _llm_predict_patterns(self, overdue_cases: List[Dict], all_loans: List[Dict]) -> List[Dict]:
@@ -192,7 +214,7 @@ Return ONLY this JSON:
         else:            return "BUCKET_OVER_30"
 
     def _severity(self, days: int) -> str:
-        if days <= 7:   return "HEALTHY"
+        if days <= 7:   return "EARLY_OVERDUE"
         elif days <= 30: return "WARNING"
         else:            return "CRITICAL"
 

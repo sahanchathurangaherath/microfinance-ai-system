@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'apps.repayments',
     'apps.collections',
     'apps.approvals',
-    'apps.recovery',
     'apps.fraud',
     'apps.notifications',
     'apps.reports',

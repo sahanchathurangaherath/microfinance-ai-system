@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from agents.data_collection_agent import DataCollectionAgent
 from agents.risk_assessment_agent import RiskAssessmentAgent
@@ -21,6 +21,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8000"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -124,47 +125,41 @@ def list_agents():
     }
 
 @app.post("/api/a1/validate-client")
-def validate_client(request: A1ValidateRequest, x_api_key: str = Header(...)):
-    verify_api_key(x_api_key)
+def validate_client(request: A1ValidateRequest, _=Depends(verify_api_key)):
     agent = DataCollectionAgent()
     result = agent.run(request.dict())
     return result
 
 
 @app.post("/api/a2/risk-score")
-def risk_score(request: A2RiskRequest, x_api_key: str = Header(...)):
-    verify_api_key(x_api_key)
+def risk_score(request: A2RiskRequest, _=Depends(verify_api_key)):
     agent = RiskAssessmentAgent()
     result = agent.run(request.dict())
     return result
 
 
 @app.post("/api/a3/recommendation")
-def get_recommendation(request: A3RecommendationRequest, x_api_key: str = Header(...)):
-    verify_api_key(x_api_key)
+def get_recommendation(request: A3RecommendationRequest, _=Depends(verify_api_key)):
     agent = RecommendationAgent()
     result = agent.run(request.dict())
     return result
 
 @app.post("/api/a4/check-repayments")
-def check_repayments(request: A4ScanRequest, x_api_key: str = Header(...)):
-    verify_api_key(x_api_key)
+def check_repayments(request: A4ScanRequest, _=Depends(verify_api_key)):
     agent = MonitoringAgent()
     result = agent.run(request.dict())
     return result
 
 
 @app.post("/api/a5/fraud-check")
-def fraud_check(request: A5FraudRequest, x_api_key: str = Header(...)):
-    verify_api_key(x_api_key)
+def fraud_check(request: A5FraudRequest, _=Depends(verify_api_key)):
     agent = FraudDetectionAgent()
     result = agent.run(request.dict())
     return result
 
 
 @app.post("/api/a6/draft-message")
-def draft_message(request: A6DraftRequest, x_api_key: str = Header(...)):
-    verify_api_key(x_api_key)
+def draft_message(request: A6DraftRequest, _=Depends(verify_api_key)):
     agent = CommunicationAgent()
     result = agent.run(request.dict())
     return result

@@ -93,7 +93,8 @@ def handle_ai_recovery():
     pending = ManualReviewCase.objects.filter(
         status='PENDING', retry_after_recovery=True
     )
+    count = pending.count()
     pending.update(status='AI_RETRY_QUEUED')
 
-    logger.info(f"AI service recovered. {pending.count()} case(s) queued for retry.")
-    return pending.count()
+    logger.info(f"AI service recovered. {count} case(s) queued for retry.")
+    return count

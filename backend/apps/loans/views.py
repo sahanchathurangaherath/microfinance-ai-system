@@ -116,7 +116,10 @@ class SubmitApplicationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # SUBMITTED
+        # SUBMITTED - set submitted_at before logging status change
+        application.submitted_at = timezone.now()
+        application.save()
+        
         log_status_change(
             application=application,
             from_status=application.status,
@@ -124,8 +127,6 @@ class SubmitApplicationView(APIView):
             user=request.user,
             reason="Application submitted by loan officer"
         )
-        application.submitted_at = timezone.now()
-        application.save()
 
         # Move to AI_SCREENING immediately
         log_status_change(
@@ -183,9 +184,8 @@ class CashflowCreateView(generics.CreateAPIView):
             application=application,
             defaults=serializer.validated_data
         )
-        if created:
-            cashflow.calculate_ratios()
-            cashflow.save()
+        cashflow.calculate_ratios()
+        cashflow.save()
 
 
 class LoanDocumentUploadView(APIView):
@@ -418,6 +418,13 @@ class TriggerRecommendationView(APIView):
         except (LoanApplication.DoesNotExist, RiskAssessment.DoesNotExist):
             return Response(
                 {"error": "Risk assessment not found. Run A2 first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # BUG-BE-16: Check application status before calling A3
+        if application.status not in ['AI_SCREENING', 'RISK_ASSESSED']:
+            return Response(
+                {"error": f"Application must be in AI_SCREENING or RISK_ASSESSED status, currently: {application.status}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

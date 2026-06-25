@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Client, ClientAddress, ClientBusiness, ClientIncome
-from apps.kyc.models import KYCDocument, KYCChecklist
+from apps.kyc.serializers import KYCDocumentSerializer, KYCChecklistSerializer
 
 
 class ClientAddressSerializer(serializers.ModelSerializer):
@@ -24,25 +24,6 @@ class ClientIncomeSerializer(serializers.ModelSerializer):
         model = ClientIncome
         fields = '__all__'
         read_only_fields = ['client']
-
-
-class KYCDocumentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = KYCDocument
-        fields = '__all__'
-        read_only_fields = ['client', 'uploaded_by', 'verified_by', 'verified_at']
-
-
-class KYCChecklistSerializer(serializers.ModelSerializer):
-    completion_percentage = serializers.SerializerMethodField()
-
-    class Meta:
-        model = KYCChecklist
-        fields = '__all__'
-        read_only_fields = ['client', 'is_complete', 'completed_by', 'completed_at']
-
-    def get_completion_percentage(self, obj):
-        return obj.calculate_completion()
 
 
 class ClientListSerializer(serializers.ModelSerializer):

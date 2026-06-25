@@ -99,7 +99,8 @@ Return ONLY this JSON:
     }}
   ],
   "tone_applied": "<brief description of tone used>",
-  "language_used": "{language}"
+  "language_used": "{language}",
+  "confidence": <float 0.75-0.95, higher if more personalized>
 }}
 
 Only include draft objects for channels in: {json.dumps(channels)}"""
@@ -110,7 +111,6 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
             # Fallback to template draft
             return self._template_draft(input_data)
 
-        from services.guardrails import validate_a6_output
         is_valid, reason = validate_a6_output(output)
         if not is_valid:
             # Guardrail rejected — fallback to template
@@ -130,7 +130,7 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
                 "language_used": output.get("language_used", language),
                 "tone_applied":  output.get("tone_applied", ""),
             },
-            confidence=0.88,
+            confidence=float(output.get("confidence", 0.85)),
             rationale=(
                 f"A6 drafted {len(drafts)} personalized message(s) for '{comm_type}' "
                 f"in {lang_name} ({tone} tone). "

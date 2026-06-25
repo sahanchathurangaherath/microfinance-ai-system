@@ -172,9 +172,12 @@ class LoanBalanceView(APIView):
         except Loan.DoesNotExist:
             return Response({"error": "Loan not found"}, status=404)
 
-        paid_installments = loan.schedule.installments.filter(status='PAID').count()
-        overdue_installments = loan.schedule.installments.filter(status='OVERDUE').count()
-        total = loan.schedule.total_installments
+        try:
+            paid_installments = loan.schedule.installments.filter(status='PAID').count()
+            overdue_installments = loan.schedule.installments.filter(status='OVERDUE').count()
+            total = loan.schedule.total_installments
+        except Exception as e:
+            return Response({"error": f"Cannot retrieve schedule: {str(e)}"}, status=400)
 
         return Response({
             "loan_number": loan.loan_number,
