@@ -43,10 +43,10 @@ class Client(models.Model):
     )
 
     preferred_language = models.CharField(
-    max_length=5,
-    choices=[('en', 'English'), ('si', 'Sinhala'), ('ta', 'Tamil')],
-    default='en'
-)
+        max_length=5,
+        choices=[('en', 'English'), ('si', 'Sinhala'), ('ta', 'Tamil')],
+        default='en'
+    )
 
     # A1 data quality score (set by AI agent)
     data_quality_score = models.FloatField(null=True, blank=True)

@@ -18,7 +18,7 @@ urlpatterns = [
     path('applications/<int:pk>/status/', ApplicationStatusView.as_view(), name='application_status'),
     path('applications/<int:pk>/cashflow/', CashflowCreateView.as_view(), name='cashflow_create'),
     path('applications/<int:pk>/documents/', LoanDocumentUploadView.as_view(), name='loan_doc_upload'),
-     path('applications/<int:pk>/risk-assess/', TriggerRiskAssessmentView.as_view()),
+    path('applications/<int:pk>/risk-assess/', TriggerRiskAssessmentView.as_view()),
     path('applications/<int:pk>/risk-review/', RiskAnalystReviewView.as_view()),
     path('risk/history/<int:client_id>/', RiskHistoryView.as_view()),
     path('applications/<int:pk>/recommend/', TriggerRecommendationView.as_view()),

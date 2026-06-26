@@ -120,6 +120,7 @@ AI_SERVICE_URL = config('AI_SERVICE_URL', default='http://localhost:8001')
 AI_SERVICE_API_KEY = config('AI_SERVICE_API_KEY', default='')
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'

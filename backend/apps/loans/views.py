@@ -178,7 +178,11 @@ class CashflowCreateView(generics.CreateAPIView):
     permission_classes = [IsLoanOfficer]
 
     def perform_create(self, serializer):
-        application = LoanApplication.objects.get(pk=self.kwargs['pk'])
+        try:
+            application = LoanApplication.objects.get(pk=self.kwargs['pk'])
+        except LoanApplication.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound("Application not found.")
         # Use update_or_create to handle duplicate OneToOne field gracefully
         cashflow, created = CashflowAssessment.objects.update_or_create(
             application=application,
@@ -193,7 +197,13 @@ class LoanDocumentUploadView(APIView):
     permission_classes = [IsLoanOfficer]
 
     def post(self, request, pk):
-        application = LoanApplication.objects.get(pk=pk)
+        try:
+            application = LoanApplication.objects.get(pk=pk)
+        except LoanApplication.DoesNotExist:
+            return Response(
+                {"error": "Application not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
         file = request.FILES.get('file')
         doc_type = request.data.get('document_type')
 

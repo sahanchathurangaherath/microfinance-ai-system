@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 from apps.loans.models import Loan
-from apps.repayments.models import RepaymentInstallment
 
 
 class DelinquencyCase(models.Model):

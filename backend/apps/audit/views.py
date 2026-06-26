@@ -14,7 +14,7 @@ from .serializers import (
     AIServiceStatusSerializer
 )
 from .utils import log_action
-from apps.users.permissions import IsAdmin, IsBranchManager, IsAdminOrBranchManager, IsRiskAnalyst
+from apps.users.permissions import IsAdmin, IsBranchManager, IsAdminOrBranchManager, IsRiskAnalyst, IsComplianceOfficer
 import httpx
 from django.conf import settings
 from django.utils import timezone
@@ -22,7 +22,7 @@ from django.utils import timezone
 
 class AuditLogListView(generics.ListAPIView):
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         qs = AuditLog.objects.all()
@@ -48,7 +48,7 @@ class AuditLogListView(generics.ListAPIView):
 
 class AgentActionLogListView(generics.ListAPIView):
     serializer_class = AgentActionLogSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         qs = AgentActionLog.objects.all()
@@ -60,7 +60,7 @@ class AgentActionLogListView(generics.ListAPIView):
 
 class HumanDecisionLogListView(generics.ListAPIView):
     serializer_class = HumanDecisionLogSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         qs = HumanDecisionLog.objects.all()
@@ -75,7 +75,7 @@ class HumanDecisionLogListView(generics.ListAPIView):
 
 class LoginAttemptListView(generics.ListAPIView):
     serializer_class = LoginAttemptSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         qs = LoginAttempt.objects.all()
@@ -160,6 +160,7 @@ class EnableManualModeView(APIView):
             user=request.user,
             action_type='SYSTEM',
             model_name='AIServiceStatus',
+            object_id=str(status_obj.pk),
             description="Manual mode enabled by Branch Manager",
             request=request
         )
@@ -184,6 +185,7 @@ class DisableManualModeView(APIView):
             user=request.user,
             action_type='SYSTEM',
             model_name='AIServiceStatus',
+            object_id=str(status_obj.pk),
             description="Manual mode disabled by Branch Manager",
             request=request
         )

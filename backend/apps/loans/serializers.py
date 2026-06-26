@@ -66,10 +66,11 @@ class CreateLoanApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = LoanApplication
         fields = [
-            'client', 'loan_product', 'requested_amount',
-            'requested_duration_months', 'loan_purpose',
+            'id', 'application_number', 'status', 'client', 'loan_product', 
+            'requested_amount', 'requested_duration_months', 'loan_purpose',
             'purpose_description', 'officer_notes'
         ]
+        read_only_fields = ['id', 'application_number', 'status']
 
     def validate(self, data):
         client = data.get('client')

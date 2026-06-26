@@ -3,13 +3,19 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.conf import settings
 from django_ratelimit.decorators import ratelimit
 from .models import User, UserActivityLog
 from .serializers import (
     UserSerializer, CreateUserSerializer,
-    UpdateUserSerializer, UserActivityLogSerializer
+    UpdateUserSerializer, UserActivityLogSerializer,
+    ForgotPasswordSerializer, ResetPasswordSerializer,
 )
 from .permissions import IsAdmin
 from apps.audit.utils import log_action, get_client_ip
@@ -136,6 +142,43 @@ class CurrentUserView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = get_user_model().objects.get(email__iexact=serializer.validated_data['email'])
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_link = f"{request.build_absolute_uri('/')}reset-password?uid={uid}&token={token}"
+
+        send_mail(
+            subject='Reset your MicroFinance AI password',
+            message=(
+                f"Hello {user.first_name or user.username},\n\n"
+                f"Use the following link to reset your password:\n{reset_link}\n\n"
+                "If you did not request this, you can safely ignore this email."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
+        return Response({"message": "If an account exists for that email, a reset link has been sent."})
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Password reset successful."})
 
 
 class UserListCreateView(generics.ListCreateAPIView):
