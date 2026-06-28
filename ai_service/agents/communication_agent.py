@@ -149,8 +149,14 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
         Active when A6_USE_LLM=false, or as fallback when Gemini fails.
         """
         comm_type = input_data.get("comm_type")
-        context   = input_data.get("context", {})
+        context   = dict(input_data.get("context", {}))
         channels  = input_data.get("channels", ["SMS", "EMAIL"])
+
+        # Normalize amount/amount_due to prevent template variable mismatch
+        if "amount_due" in context and "amount" not in context:
+            context["amount"] = context["amount_due"]
+        elif "amount" in context and "amount_due" not in context:
+            context["amount_due"] = context["amount"]
 
         SMS_TEMPLATES = {
             "REPAYMENT_REMINDER": (

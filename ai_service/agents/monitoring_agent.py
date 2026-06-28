@@ -26,7 +26,7 @@ class MonitoringAgent(BaseAgent):
         If A4_USE_LLM=true, also runs LLM behavioural prediction per overdue loan.
         """
         loans     = input_data.get("loans", [])
-        today_str = input_data.get("today", str(date.today()))
+        today_str = input_data.get("today") or str(date.today())
         today     = date.fromisoformat(today_str)
 
         overdue_cases     = []
@@ -67,7 +67,7 @@ class MonitoringAgent(BaseAgent):
                     "bucket":             bucket,
                     "severity":           severity,
                     "recommended_action": self._recommend_action(days_overdue),
-                    # LLM fields — populated below if USE_LLM=true
+                    # LLM fields 
                     "predicted_default_probability": None,
                     "behavioral_pattern_label":      None,
                     "llm_recommended_action":        None,
@@ -206,7 +206,7 @@ Return ONLY this JSON:
         return overdue_cases
 
    
-    # RULE-BASED HELPERS (unchanged from original)
+    # RULE-BASED HELPERS 
    
     def _classify_bucket(self, days: int) -> str:
         if days <= 7:   return "BUCKET_1_7"

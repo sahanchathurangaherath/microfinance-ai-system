@@ -142,7 +142,7 @@ Risk Category rules:
         )
 
     
-    # RULE-BASED PATH (original MVP logic — preserved as fallback)
+    # RULE-BASED PATH 
    
     def _rule_score(self, input_data: Dict) -> Dict:
         """

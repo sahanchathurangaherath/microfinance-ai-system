@@ -35,7 +35,7 @@ class DataCollectionAgent(BaseAgent):
     def _llm_validate(self, client_id, client: Dict, kyc: Dict) -> Dict:
         """
         LLM-powered KYC validation.
-        Gemini reasons about completeness, consistency, and fraud signals.
+        LLM reasons about completeness, consistency, and fraud signals.
         """
         import json
         from services.gemini_client import call_gemini
@@ -104,7 +104,7 @@ Return ONLY this JSON structure:
         )
 
     
-    # RULE-BASED PATH (original MVP logic — preserved as fallback)
+    # RULE-BASED PATH (original MVP logic )
 
     def _rule_validate(self, client_id, client: Dict, kyc: Dict) -> Dict:
         """

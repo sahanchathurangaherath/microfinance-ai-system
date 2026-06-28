@@ -6,11 +6,15 @@ from agents.recommendation_agent import RecommendationAgent
 from agents.monitoring_agent import MonitoringAgent
 from agents.fraud_detection_agent import FraudDetectionAgent
 from agents.communication_agent import CommunicationAgent
-
-from pydantic import BaseModel
-from typing import Dict, Any, Optional,List
+from schemas.requests import (
+    A1ValidateRequest,
+    A2RiskRequest,
+    A3RecommendationRequest,
+    A4ScanRequest,
+    A5FraudRequest,
+    A6DraftRequest,
+)
 from decouple import config
-import httpx
 
 app = FastAPI(
     title="Microfinance AI Agent Service",
@@ -20,7 +24,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000"],
+    allow_origins=[
+        "http://localhost:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,76 +37,10 @@ app.add_middleware(
 API_KEY = config('AI_SERVICE_API_KEY', default='internal-ai-key-change-this')
 
 
-
-
 def verify_api_key(x_api_key: str = Header(...)):
     """All requests from Django """
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    
-
-
-class A1ValidateRequest(BaseModel):
-    client_id: int
-    client_data: Dict[str, Any]
-    kyc_data: Dict[str, Any]
-
-
-class A2RiskRequest(BaseModel):
-    loan_id: int
-    client_data: Dict[str, Any]
-    loan_data: Dict[str, Any]
-    repayment_history: Optional[Dict[str, Any]] = {}
-
-
-
-class A3RecommendationRequest(BaseModel):
-    loan_id: int
-    risk_score: float
-    risk_category: str
-    default_signals: list = []
-    kyc_score: float = 0
-    requested_amount: float
-    monthly_income: float
-    requested_duration_months: int
-    debt_to_income_ratio: float = 0
-    has_repayment_history: bool = False
-    ai_rationale: str = ""
-
-
-class InstallmentData(BaseModel):#A4 input structure for repayment monitoring
-    installment_id: int
-    installment_number: int
-    due_date: str
-    amount_due: float
-    outstanding: float
-    status: str
-
-class LoanRepaymentData(BaseModel):#A4 input structure for repayment monitoring
-    loan_id: int
-    loan_number: str
-    installments: List[InstallmentData]
-
-class A4ScanRequest(BaseModel):
-    loans: List[LoanRepaymentData]
-    today: Optional[str] = None
-
-
-class A5FraudRequest(BaseModel):
-    check_type: str = "FULL"
-    client_id: Optional[int] = None
-    loan_id: Optional[int] = None
-    identity_data: Dict[str, Any] = {}
-    application_data: Dict[str, Any] = {}
-    payment_data: Dict[str, Any] = {}
-    kyc_data: Dict[str, Any] = {}
-
-class A6DraftRequest(BaseModel):
-    comm_type: str
-    context: Dict[str, Any]
-    channels: List[str] = ["SMS", "EMAIL"]
-
-
 
 
 

@@ -60,4 +60,7 @@ def call_gemini(system_prompt: str, user_prompt: str) -> dict:
     except Exception:
         pass
 
+    if isinstance(parsed, dict) and usage:
+        parsed["usage_metadata"] = usage
+
     return parsed
