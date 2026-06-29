@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, generics
+from rest_framework import status, generics, filters
 from django.utils import timezone
 from decimal import Decimal
 
@@ -70,6 +70,8 @@ class OverdueCaseListView(generics.ListAPIView):
     """Collections Officer sees their assigned overdue cases."""
     serializer_class = DelinquencyCaseSerializer
     permission_classes = [IsCollectionsOfficer]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['loan__loan_number', 'loan__client__first_name', 'loan__client__last_name']
 
     def get_queryset(self):
         user = self.request.user

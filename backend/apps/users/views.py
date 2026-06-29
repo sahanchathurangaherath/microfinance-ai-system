@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import filters
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -184,6 +185,8 @@ class ResetPasswordView(APIView):
 class UserListCreateView(generics.ListCreateAPIView):
     queryset = User.objects.all().order_by('-created_at')
     permission_classes = [IsAdmin]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['username', 'first_name', 'last_name', 'email']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':

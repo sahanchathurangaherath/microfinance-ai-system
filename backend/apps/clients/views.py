@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import filters
 from django.utils import timezone
 import httpx
 from django.conf import settings
@@ -20,6 +21,8 @@ from apps.users.permissions import IsLoanOfficer, IsAdmin
 class ClientListCreateView(generics.ListCreateAPIView):
     queryset = Client.objects.all()
     permission_classes = [IsLoanOfficer]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['first_name', 'last_name', 'nic_number', 'phone_primary']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':

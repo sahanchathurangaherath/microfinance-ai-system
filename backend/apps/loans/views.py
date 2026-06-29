@@ -12,6 +12,7 @@ from rest_framework import generics, status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import filters
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ class LoanProductListView(generics.ListAPIView):
 
 class LoanApplicationListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsLoanOfficer]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['application_number', 'client__first_name', 'client__last_name', 'client__nic_number']
 
     def get_queryset(self):
         user = self.request.user
