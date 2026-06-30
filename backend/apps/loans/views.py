@@ -64,6 +64,28 @@ class LoanApplicationListCreateView(generics.ListCreateAPIView):
             return CreateLoanApplicationSerializer
         return LoanApplicationListSerializer
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Calculate status counts on the full filtered queryset
+        from django.db.models import Count
+        status_counts_qs = queryset.values('status').annotate(count=Count('status'))
+        status_counts = {item['status']: item['count'] for item in status_counts_qs}
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data['status_counts'] = status_counts
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'count': queryset.count(),
+            'status_counts': status_counts,
+            'results': serializer.data
+        })
+
     def perform_create(self, serializer):
         application = serializer.save(created_by=self.request.user, status='DRAFT')
         log_status_change(
