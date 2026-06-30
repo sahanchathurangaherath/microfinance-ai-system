@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, generics
+from rest_framework import status, generics, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db import transaction
 from decimal import Decimal
@@ -14,7 +15,17 @@ from .models import (
 )
 from apps.loans.models import Loan
 from apps.users.permissions import IsFinanceStaff, IsCollectionsOfficer, IsLoanOfficer
+from .serializers import InstallmentSerializer
 
+class AllInstallmentsListView(generics.ListAPIView):
+    permission_classes = [IsFinanceStaff | IsLoanOfficer | IsCollectionsOfficer]
+    serializer_class = InstallmentSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['status']
+    search_fields = ['schedule__loan__loan_number', 'schedule__loan__client__first_name', 'schedule__loan__client__last_name']
+
+    def get_queryset(self):
+        return RepaymentInstallment.objects.select_related('schedule__loan__client').all().order_by('due_date')
 
 class RepaymentScheduleView(APIView):
     permission_classes = [IsLoanOfficer]

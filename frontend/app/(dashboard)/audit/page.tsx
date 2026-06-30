@@ -12,7 +12,7 @@ import { useState } from "react";
 export default function AuditPage() {
   const [actionFilter, setActionFilter] = useState("");
   const params = actionFilter ? `?action_type=${actionFilter}` : "";
-  const { data, error, isLoading, mutate } = useSWR(`/audit/${params}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(`/audit/logs/${params}`, fetcher);
   const logs = data?.results || data || [];
 
   const columns = [

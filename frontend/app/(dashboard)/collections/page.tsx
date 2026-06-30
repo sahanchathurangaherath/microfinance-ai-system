@@ -20,7 +20,7 @@ export default function CollectionsPage() {
   if (search) params.set("search", search);
   params.set("page", String(page));
 
-  const { data, isLoading } = useSWR(`/collections/?${params.toString()}`, fetcher);
+  const { data, isLoading } = useSWR(`/collections/overdue/?${params.toString()}`, fetcher);
   const collections = data?.results || data || [];
   const total = data?.count || collections.length;
   const totalPages = Math.ceil(total / 10);
