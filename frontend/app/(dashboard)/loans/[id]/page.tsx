@@ -24,7 +24,7 @@ export default function LoanDetailPage({ params }: { params: { id: string } }) {
   const { data: loan, isLoading, mutate } = useSWR(`/loans/applications/${params.id}/`, fetcher);
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
-  if (!loan) return <div className="text-center py-16"><p className="text-[var(--text-muted)]">Application not found</p><Link href="/loans"><Button variant="outline" className="mt-4">Back to Loans</Button></Link></div>;
+  if (!loan) return <div className="text-center py-16"><p className="text-[var(--text-muted)]">Application not found</p><Link href="/loans" className="btn btn-outline mt-4">Back to Loans</Link></div>;
 
   const riskAssessment = loan.risk_assessment;
   const aiRec = loan.ai_recommendation;
@@ -57,7 +57,10 @@ export default function LoanDetailPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="space-y-6">
-      <Link href="/loans"><Button variant="ghost" size="sm" icon={<ArrowLeft className="h-4 w-4" />}>All Applications</Button></Link>
+      <Link href="/loans" className="btn btn-ghost btn-sm">
+        <ArrowLeft className="h-4 w-4 mr-1.5" />
+        All Applications
+      </Link>
 
       {/* Header */}
       <div className="card p-6">

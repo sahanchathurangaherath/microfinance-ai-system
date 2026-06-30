@@ -29,12 +29,7 @@ export default function LoansPage() {
   const loans = data?.results || data || [];
   const total = data?.count || loans.length;
   const totalPages = Math.ceil(total / 10);
-
-  const pipelineCounts = loans.reduce((acc: Record<string, number>, loan: Record<string, unknown>) => {
-    const s = String(loan.status || "DRAFT").toUpperCase();
-    acc[s] = (acc[s] || 0) + 1;
-    return acc;
-  }, {});
+  const pipelineCounts = data?.status_counts || {};
 
   return (
     <div className="flex flex-col h-full gap-4">
@@ -43,12 +38,15 @@ export default function LoansPage() {
           <p className="text-[var(--text-muted)] text-sm mt-0.5">{total} total applications</p>
         </div>
         {can("loans:write") && (
-          <Link href="/loans/new"><Button icon={<Plus className="h-4 w-4" />}>New Application</Button></Link>
+          <Link href="/loans/new" className="btn btn-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            New Application
+          </Link>
         )}
       </div>
 
       {/* Pipeline Visualization */}
-      <div className="flex-shrink-0 flex gap-2 px-4 py-3 rounded-2xl border border-gray-200 bg-white/80 overflow-x-auto">
+      <div className="flex-shrink-0 flex w-full gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-2xl border border-gray-200 bg-white/80 overflow-x-auto scrollbar-none pb-1 sm:pb-3">
         {[
           { label: "Draft", key: "DRAFT", color: "bg-gray-100 text-gray-700" },
           { label: "Submitted", key: "SUBMITTED", color: "bg-amber-50 text-amber-700" },
@@ -64,13 +62,13 @@ export default function LoansPage() {
             key={s.key}
             onClick={() => { setStatus(status === s.key ? "" : s.key); setPage(1); }}
             className={cn(
-              "flex flex-col items-center px-3 py-2 rounded-xl min-w-[74px] text-center border transition-colors shadow-sm",
-              status === s.key ? "border-blue-500 font-semibold" : "border-transparent",
+              "flex flex-1 flex-col items-center justify-center px-1 py-2 sm:px-3 sm:py-2.5 rounded-xl min-w-[72px] sm:min-w-[84px] text-center border transition-all shadow-sm",
+              status === s.key ? "border-blue-500 font-bold ring-1 ring-blue-500 scale-[1.02] shadow-md" : "border-transparent hover:shadow hover:-translate-y-0.5",
               s.color
             )}
           >
-            <span className="text-lg font-bold">{pipelineCounts[s.key] || 0}</span>
-            <span className="text-[10px] font-medium mt-0.5 whitespace-nowrap">{s.label}</span>
+            <span className="text-xl sm:text-2xl font-bold">{pipelineCounts[s.key] || 0}</span>
+            <span className="text-[10px] sm:text-xs font-medium mt-1 whitespace-nowrap">{s.label}</span>
           </button>
         ))}
       </div>
@@ -121,7 +119,12 @@ export default function LoansPage() {
                     <td className="px-4 py-3 text-sm"><span>{String(l.requested_duration_months || "—")} mo</span></td>
                     <td className="px-4 py-3 text-sm"><Badge status={String(l.status || "DRAFT")} /></td>
                     <td className="px-4 py-3 text-sm"><span className="text-gray-400">{formatDate(String(l.created_at || new Date()))}</span></td>
-                    <td className="px-4 py-3 text-sm"><Link href={`/loans/${l.id}`}><Button size="sm" variant="ghost" icon={<Eye className="h-3.5 w-3.5" />}>View</Button></Link></td>
+                    <td className="px-4 py-3 text-sm">
+                      <Link href={`/loans/${l.id}`} className="btn btn-ghost btn-sm">
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        View
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
