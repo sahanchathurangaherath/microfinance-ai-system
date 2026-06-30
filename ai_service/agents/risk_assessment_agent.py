@@ -2,7 +2,7 @@
 """
 A2 — Risk Assessment Agent
 Scores loan applications using multi-factor analysis.
-LLM upgrade: reasons through each risk factor and writes full rationale.
+LLM upgrade: the local model reasons through each risk factor and writes full rationale.
 Output must be reviewed by a Risk Analyst — A2 cannot approve or reject.
 """
 

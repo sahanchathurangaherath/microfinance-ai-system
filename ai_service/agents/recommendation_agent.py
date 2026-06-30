@@ -2,7 +2,7 @@
 """
 A3 — Recommendation Agent
 Reads A2 risk output and generates an explainable recommendation.
-LLM upgrade: reads A2's full rationale text — not just the score number.
+LLM upgrade: the local model reads A2's full rationale text — not just the score number.
 A3 NEVER approves or rejects — only recommends. Human has final authority.
 """
 

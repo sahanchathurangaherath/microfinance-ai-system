@@ -92,7 +92,7 @@ def log_agent_action(
         triggered_by: User who triggered the agent (if manual)
         response_time_ms: Time taken in milliseconds
         trigger_type: 'manual' or 'automatic'
-        llm_model_used: Name of LLM model used (optional, for Gemini calls)
+        llm_model_used: Name of LLM model used (optional, for local or cloud LLM calls)
         prompt_tokens_used: Number of prompt tokens (optional)
         completion_tokens_used: Number of completion tokens (optional)
         llm_raw_response: Raw response from LLM (optional)

@@ -1,7 +1,7 @@
 # ai_service/agents/communication_agent.py
 """
 A6 — Communication Agent
-LLM upgrade: Gemini generates personalized, context-aware messages.
+LLM upgrade: the local model generates personalized, context-aware messages.
 Replaces fixed template substitution with intelligent drafting.
 Multilingual: English, Sinhala (si), Tamil (ta) based on client preference.
 HARD RULE: A6 only drafts. All messages require officer approval before sending.
@@ -146,7 +146,7 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
     def _template_draft(self, input_data: Dict) -> Dict:
         """
         Original MVP fixed-template drafting.
-        Active when A6_USE_LLM=false, or as fallback when Gemini fails.
+        Active when A6_USE_LLM=false, or as fallback when the local LLM fails.
         """
         comm_type = input_data.get("comm_type")
         context   = dict(input_data.get("context", {}))
