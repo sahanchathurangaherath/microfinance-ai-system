@@ -65,9 +65,9 @@ Return ONLY this JSON structure:
 }}"""
 
         try:
-            output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
-            # Gemini failed — return low confidence to trigger Manual Mode
+            # Local LLM failed — return low confidence to trigger Manual Mode
             return self.low_confidence_response(
                 input_reference=f"client:{client_id}",
                 reason=f"LLM service error: {str(e)}. Manual KYC review required."

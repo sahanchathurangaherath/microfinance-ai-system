@@ -32,11 +32,11 @@ class RiskAssessmentAgent(BaseAgent):
     def _llm_score(self, input_data: Dict) -> Dict:
         """
         LLM-powered risk scoring.
-        Gemini reasons through all 6 factors and provides full rationale.
+        The local model reasons through all 6 factors and provides full rationale.
         Returns the same output structure as _rule_score so Django needs no changes.
         """
         import json
-        from services.gemini_client import call_gemini
+        from services.llm_client import call_llm
         from services.guardrails import validate_a2_output, confidence_requires_manual_review
 
         loan_id = input_data.get("loan_id")
@@ -95,7 +95,7 @@ Risk Category rules:
 - Score 0-39   → HIGH   → required_action: BRANCH_MANAGER_ESCALATION"""
 
         try:
-            output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
             return self.low_confidence_response(
                 input_reference=f"loan:{loan_id}",

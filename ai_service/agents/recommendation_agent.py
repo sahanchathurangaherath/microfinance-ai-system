@@ -32,7 +32,7 @@ class RecommendationAgent(BaseAgent):
     def _llm_recommend(self, input_data: Dict) -> Dict:
         """
         LLM-powered recommendation.
-        Key advantage over rule-based: Gemini reads A2's full ai_rationale text,
+        Key advantage over rule-based: the local LLM reads A2's full ai_rationale text,
         not just the score number — enabling genuine multi-step reasoning.
         Uses few-shot examples from recommendation_examples.json if available.
         """

@@ -41,9 +41,9 @@ class CommunicationAgent(BaseAgent):
     def _llm_draft(self, input_data: Dict) -> Dict:
         """
         LLM-powered message drafting.
-        Gemini generates personalized, tone-adjusted messages.
+        The local model generates personalized, tone-adjusted messages.
         Supports Sinhala, Tamil, English based on client preference.
-        Falls back to template draft if Gemini fails.
+        Falls back to template draft if the LLM fails.
         """
         import json
         from services.llm_client import call_llm

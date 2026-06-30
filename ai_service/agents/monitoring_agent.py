@@ -135,12 +135,12 @@ class MonitoringAgent(BaseAgent):
 
     def _llm_predict_patterns(self, overdue_cases: List[Dict], all_loans: List[Dict]) -> List[Dict]:
         """
-        For each overdue loan, call Gemini to classify the payment
+        For each overdue loan, call the local LLM to classify the payment
         behaviour pattern and predict default probability.
-        Falls back silently if Gemini fails — rule-based data remains intact.
+        Falls back silently if the LLM fails — rule-based data remains intact.
         """
         import json
-        from services.gemini_client import call_gemini
+        from services.llm_client import call_llm
         from services.guardrails import validate_a4_llm_output
 
         # Build a lookup of full installment history per loan
@@ -187,7 +187,7 @@ Return ONLY this JSON:
 }}"""
 
             try:
-                output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+                output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
                 is_valid, _ = validate_a4_llm_output(output)
                 if is_valid:
                     predictions[loan_id] = output

@@ -96,7 +96,7 @@ class AgentActionLog(models.Model):
     invoked_at = models.DateTimeField(auto_now_add=True)
     response_time_ms = models.IntegerField(null=True, blank=True)
 
-    # LLM metadata (for Gemini calls)
+    # LLM metadata (for local or cloud LLM calls)
     llm_model_used = models.CharField(max_length=50, blank=True)
     prompt_tokens_used = models.IntegerField(default=0)
     completion_tokens_used = models.IntegerField(default=0)

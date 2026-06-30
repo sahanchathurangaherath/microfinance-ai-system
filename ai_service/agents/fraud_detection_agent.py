@@ -90,7 +90,7 @@ class FraudDetectionAgent(BaseAgent):
         - 'Prosecutor' sub-prompt: find evidence supporting fraud
         - 'Defense' sub-prompt: find innocent explanations
         - Synthesis: produce refined verdict and investigation focus
-        Falls back silently if Gemini fails — rule-based output preserved.
+        Falls back silently if the local LLM fails — rule-based output preserved.
         """
         import json
         from services.llm_client import call_llm
@@ -141,7 +141,7 @@ Return ONLY this JSON:
 }}"""
 
         try:
-            output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception:
             # Silent fallback — rule-based output preserved unchanged
             return rule_output, existing_rationale
