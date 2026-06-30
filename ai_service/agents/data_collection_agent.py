@@ -38,7 +38,7 @@ class DataCollectionAgent(BaseAgent):
         LLM reasons about completeness, consistency, and fraud signals.
         """
         import json
-        from services.gemini_client import call_gemini
+        from services.llm_client import call_llm
         from services.guardrails import validate_a1_output, confidence_requires_manual_review
 
         SYSTEM_PROMPT = """You are a KYC Data Quality Analyst for a microfinance institution in Sri Lanka.

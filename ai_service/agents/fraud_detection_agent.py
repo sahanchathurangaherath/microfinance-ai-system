@@ -93,7 +93,7 @@ class FraudDetectionAgent(BaseAgent):
         Falls back silently if Gemini fails — rule-based output preserved.
         """
         import json
-        from services.gemini_client import call_gemini
+        from services.llm_client import call_llm
         from services.guardrails import validate_a5_output
 
         client_id = input_data.get("client_id")

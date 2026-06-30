@@ -1,7 +1,7 @@
 """
 Unified LLM entry point.
 All 6 agents import ONLY from here.
-Changing LOCAL_LLM_MODEL in .env is the only config needed to switch models.
+
 """
 
 from decouple import config

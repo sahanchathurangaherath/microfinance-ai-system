@@ -38,7 +38,7 @@ class RecommendationAgent(BaseAgent):
         """
         import json
         import os
-        from services.gemini_client import call_gemini
+        from services.llm_client import call_llm
         from services.guardrails import validate_a3_output, confidence_requires_manual_review
 
         loan_id          = input_data.get("loan_id")
@@ -107,7 +107,7 @@ Return ONLY this JSON:
 }}"""
 
         try:
-            output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
             return self.low_confidence_response(
                 input_reference=f"loan:{loan_id}",

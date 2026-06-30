@@ -46,7 +46,7 @@ class CommunicationAgent(BaseAgent):
         Falls back to template draft if Gemini fails.
         """
         import json
-        from services.gemini_client import call_gemini
+        from services.llm_client import call_llm
         from services.guardrails import validate_a6_output
 
         comm_type = input_data.get("comm_type")
@@ -106,7 +106,7 @@ Return ONLY this JSON:
 Only include draft objects for channels in: {json.dumps(channels)}"""
 
         try:
-            output = call_gemini(SYSTEM_PROMPT, USER_PROMPT)
+            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
             # Fallback to template draft
             return self._template_draft(input_data)

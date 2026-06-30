@@ -1,4 +1,3 @@
-
 MIN_CONFIDENCE = 0.65
 
 VALID_RISK_CATEGORIES      = {"LOW", "MEDIUM", "HIGH"}
@@ -48,11 +47,7 @@ def validate_a4_llm_output(output: dict) -> tuple[bool, str]:
         return False, "predicted_default_probability out of 0–1 range"
     if output.get("behavioral_pattern_label") not in VALID_BEHAVIORAL_PATTERNS:
         return False, "behavioral_pattern_label is invalid"
-    return True, ""       return False, "predicted_default_probability out of 0–1 range"
-    if output.get("behavioral_pattern_label") not in VALID_BEHAVIORAL_PATTERNS:
-        return False, "behavioral_pattern_label is invalid"
     return True, ""
-
 
 
 def validate_a5_output(output: dict) -> tuple[bool, str]:
