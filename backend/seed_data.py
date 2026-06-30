@@ -55,7 +55,8 @@ from apps.approvals.models import ApprovalWorkflow, ApprovalDecision
 # SECTION 1 — CONFIGURATION
 # =============================================================
 
-BRANCH_NAME = "Kalutara Branch"
+BRANCHES = ["Kalutara Branch", "Kurunegala Branch", "Colombo Branch", "Kandy Branch"]
+BRANCH_NAME = "Kalutara Branch" # fallback
 SEED_PASSWORD = "Seed@2025!"   # All seeded users get this password
 
 # Loan product interest rates — sourced directly from Excel scenarios
@@ -108,17 +109,17 @@ LAST_NAMES = [
 # Locations — all from Kalutara District (matches the Excel data)
 LOCATIONS = [
     ("Panadura", "Kalutara", "Western"),
-    ("Aluthgama", "Kalutara", "Western"),
-    ("Matugama", "Kalutara", "Western"),
     ("Horana", "Kalutara", "Western"),
-    ("Kalutara", "Kalutara", "Western"),
-    ("Beruwala", "Kalutara", "Western"),
-    ("Bandaragama", "Kalutara", "Western"),
-    ("Wadduwa", "Kalutara", "Western"),
-    ("Ingiriya", "Kalutara", "Western"),
-    ("Bulathsinhala", "Kalutara", "Western"),
-    ("Palindanuwara", "Kalutara", "Western"),
-    ("Agalawatta", "Kalutara", "Western"),
+    ("Matugama", "Kalutara", "Western"),
+    ("Colombo 03", "Colombo", "Western"),
+    ("Maharagama", "Colombo", "Western"),
+    ("Moratuwa", "Colombo", "Western"),
+    ("Kurunegala", "Kurunegala", "North Western"),
+    ("Kuliyapitiya", "Kurunegala", "North Western"),
+    ("Narammala", "Kurunegala", "North Western"),
+    ("Kandy", "Kandy", "Central"),
+    ("Peradeniya", "Kandy", "Central"),
+    ("Gampola", "Kandy", "Central"),
 ]
 
 # Occupations — from Excel data, authentic Sri Lankan microfinance clients
@@ -409,25 +410,40 @@ def seed_database():
     ]
 
     staff_users = {}
-    for username, first, last, role, phone in staff_data:
-        user = User.objects.create_user(
-            username=username,
-            password=SEED_PASSWORD,
-            email=f"{username}@kalutaramicrofinance.lk",
-            first_name=first,
-            last_name=last,
-            role=role,
-            phone=phone,
-            branch=BRANCH_NAME,
-            is_active=True
-        )
-        staff_users[role] = staff_users.get(role) or user
-        print(f"     ✓ {role}: {first} {last}")
+    staff_by_branch = {}
+    for branch_name in BRANCHES:
+        branch_prefix = branch_name.split()[0].lower()
+        staff_by_branch[branch_name] = {}
+        for username, first, last, role, phone in staff_data:
+            user = User.objects.create_user(
+                username=f"{branch_prefix}.{username}",
+                password=SEED_PASSWORD,
+                email=f"{username}@{branch_prefix}microfinance.lk",
+                first_name=first,
+                last_name=last,
+                role=role,
+                phone=phone,
+                branch=branch_name,
+                is_active=True
+            )
+            staff_users[role] = user # keep last for fallback
+            staff_by_branch[branch_name][role] = user
+        print(f"     ✓ Staff created for {branch_name}")
 
     loan_officer = staff_users['loan_officer']
     branch_manager = staff_users['branch_manager']
     risk_analyst = staff_users.get('risk_analyst')
     finance = staff_users['finance_staff']
+    
+    # Helper to get staff by city
+    def get_staff_for_city(city):
+        if city in ["Panadura", "Horana", "Matugama"]: b = "Kalutara Branch"
+        elif city in ["Colombo 03", "Maharagama", "Moratuwa"]: b = "Colombo Branch"
+        elif city in ["Kurunegala", "Kuliyapitiya", "Narammala"]: b = "Kurunegala Branch"
+        elif city in ["Kandy", "Peradeniya", "Gampola"]: b = "Kandy Branch"
+        else: b = "Kalutara Branch"
+        return staff_by_branch[b]
+
 
     # ── 7.3 Create Loan Products ─────────────────────────────
     print("\n[3/8] Creating loan products...")
@@ -504,7 +520,7 @@ def seed_database():
             phone_primary=phone,
             email=f"{first.lower()}.{last.lower().replace(' ', '')}@gmail.com",
             status='ACTIVE',
-            registered_by=loan_officer,
+            registered_by=get_staff_for_city(city)["loan_officer"] if "city" in locals() else get_staff_for_city(cdata["city"])["loan_officer"],
             data_quality_score=random.uniform(82, 96),
         )
 
@@ -555,8 +571,8 @@ def seed_database():
             aml_check_done=True,
             sanctions_check_done=True,
             business_reg_verified=True,
-            is_complete=True,
-            completed_by=loan_officer,
+            is_complete=random.random() > 0.1,  # 10% have incomplete/expired KYC
+            completed_by=get_staff_for_city(city)["loan_officer"] if "city" in locals() else get_staff_for_city(cdata["city"])["loan_officer"],
             completed_at=datetime.now(),
         )
 
@@ -581,7 +597,7 @@ def seed_database():
             phone_primary=cdata['phone'],
             email=f"{cdata['first_name'].lower()}.{cdata['last_name'].lower().replace(' ', '')}{i}@gmail.com",
             status=random.choice(['ACTIVE', 'ACTIVE', 'ACTIVE', 'VERIFIED']),
-            registered_by=loan_officer,
+            registered_by=get_staff_for_city(city)["loan_officer"] if "city" in locals() else get_staff_for_city(cdata["city"])["loan_officer"],
             data_quality_score=random.uniform(75, 95),
         )
 
@@ -629,7 +645,7 @@ def seed_database():
             sanctions_check_done=True,
             business_reg_verified=random.random() > 0.2,
             is_complete=True,
-            completed_by=loan_officer,
+            completed_by=get_staff_for_city(city)["loan_officer"] if "city" in locals() else get_staff_for_city(cdata["city"])["loan_officer"],
             completed_at=datetime.now(),
         )
 
@@ -714,7 +730,7 @@ def seed_database():
             ]),
             purpose_description=f"Business development — {client.first_name}'s {client.business.business_name}",
             status='DISBURSED',
-            created_by=loan_officer,
+            created_by=get_staff_for_city(client.addresses.first().city)['loan_officer'],
             submitted_at=scenario['disb_date'] - timedelta(days=7),
             officer_notes=f"Client verified. Group loan cycle 1. {group_id}."
         )
@@ -743,7 +759,7 @@ def seed_database():
             application=app,
             from_status='',
             to_status='DRAFT',
-            changed_by=loan_officer,
+            changed_by=get_staff_for_city(client.addresses.first().city)['loan_officer'],
             changed_by_role='loan_officer',
             reason='Application created'
         )
@@ -751,7 +767,7 @@ def seed_database():
             application=app,
             from_status='DRAFT',
             to_status='APPROVED',
-            changed_by=branch_manager,
+            changed_by=get_staff_for_city(client.addresses.first().city)['branch_manager'],
             changed_by_role='branch_manager',
             reason='Credit committee approved'
         )
@@ -759,7 +775,7 @@ def seed_database():
             application=app,
             from_status='APPROVED',
             to_status='DISBURSED',
-            changed_by=finance,
+            changed_by=get_staff_for_city(client.addresses.first().city)['finance_staff'],
             changed_by_role='finance_staff',
             reason=f'Disbursed on {scenario["disb_date"]}'
         )
@@ -767,6 +783,14 @@ def seed_database():
         # Risk Assessment
         risk_score = random.uniform(55, 88)
         if scenario['status'] == 'WATCHLIST':
+            # Inject realistic default reasons based on 2025/2026 data
+            default_reasons = [
+                "Severe impact from recent inflation/cost of living increase.",
+                "Business downturn due to reduced consumer purchasing power.",
+                "Over-indebtedness (multiple external microfinance loans).",
+                "Climate shock (recent floods/drought) affected agricultural yield."
+            ]
+            scenario['default_reason'] = random.choice(default_reasons)
             risk_score = random.uniform(35, 60)
         elif scenario['status'] == 'CLOSED':
             risk_score = random.uniform(65, 90)
@@ -777,7 +801,7 @@ def seed_database():
             risk_score=round(risk_score, 2),
             risk_category=risk_cat,
             confidence=round(random.uniform(0.78, 0.95), 2),
-            ai_rationale=f"Rule-based assessment: score {round(risk_score, 1)}/100 ({risk_cat}). "
+            ai_rationale=f"Rule-based assessment: score {round(risk_score, 1)}/100 ({risk_cat}). {scenario.get('default_reason', '')} "
                         f"DTI={round(dti*100,1)}%. Income stable. Business {client.business.years_in_operation}yr(s).",
             dti_score=25 if dti < 0.30 else 15 if dti < 0.50 else 0,
             lti_score=20 if float(scenario['amount']) < float(income.monthly_income) * 24 else 10,
@@ -786,7 +810,7 @@ def seed_database():
             repayment_history_score=10,
             dependents_score=10 if income.number_of_dependents <= 2 else 5,
             default_signals=[],
-            reviewed_by=risk_analyst,
+            reviewed_by=get_staff_for_city(client.addresses.first().city).get('risk_analyst'),
             reviewed_at=datetime.now() - timedelta(days=random.randint(5, 30)),
             analyst_notes="Reviewed. Proceeding to disbursement.",
         )

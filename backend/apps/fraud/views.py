@@ -72,7 +72,7 @@ class TriggerFraudCheckView(APIView):
                 f"{settings.AI_SERVICE_URL}/api/a5/fraud-check",
                 json=payload,
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=15.0
+                timeout=120.0
             )
             ai_result = response.json()
         except Exception as e:

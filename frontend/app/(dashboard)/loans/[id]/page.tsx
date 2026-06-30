@@ -11,17 +11,20 @@ import Card from "@/components/ui/Card";
 import StatCard from "@/components/ui/StatCard";
 import Spinner from "@/components/ui/Spinner";
 import { usePermissions } from "@/lib/permissions";
-import { useState } from "react";
+import { useState, use } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { approvalsAPI } from "@/lib/api";
 
-export default function LoanDetailPage({ params }: { params: { id: string } }) {
+export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { can, role } = usePermissions();
   const toast = useToast();
   const [actionComments, setActionComments] = useState("");
   const [isActioning, setIsActioning] = useState(false);
+  
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
 
-  const { data: loan, isLoading, mutate } = useSWR(`/loans/applications/${params.id}/`, fetcher);
+  const { data: loan, isLoading, mutate } = useSWR(`/loans/applications/${id}/`, fetcher);
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (!loan) return <div className="text-center py-16"><p className="text-[var(--text-muted)]">Application not found</p><Link href="/loans" className="btn btn-outline mt-4">Back to Loans</Link></div>;
@@ -47,7 +50,7 @@ export default function LoanDetailPage({ params }: { params: { id: string } }) {
     if (!actionComments.trim()) { toast.warning("Please add comments before making a decision"); return; }
     setIsActioning(true);
     try {
-      await approvalsAPI.makeDecision(Number(params.id), { decision, comments: actionComments });
+      await approvalsAPI.makeDecision(Number(id), { decision, comments: actionComments });
       toast.success(`Application ${decision.toLowerCase()} successfully`);
       mutate();
       setActionComments("");

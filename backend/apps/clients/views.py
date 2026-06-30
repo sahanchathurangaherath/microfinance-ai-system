@@ -161,7 +161,7 @@ class A1ValidateClientView(APIView):
                 f"{settings.AI_SERVICE_URL}/api/a1/validate-client",
                 json=payload,
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=10.0
+                timeout=120.0
             )
             ai_result = response.json()
         except Exception as e:

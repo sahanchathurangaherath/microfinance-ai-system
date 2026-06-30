@@ -55,7 +55,7 @@ class DraftNotificationView(APIView):
                 f"{settings.AI_SERVICE_URL}/api/a6/draft-message",
                 json={"comm_type": comm_type, "context": context, "channels": channels},
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=10.0
+                timeout=120.0
             )
             ai_result = response.json()
         except Exception as e:

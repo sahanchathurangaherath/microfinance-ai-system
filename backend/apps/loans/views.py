@@ -299,7 +299,7 @@ class TriggerRiskAssessmentView(APIView):
                 f"{settings.AI_SERVICE_URL}/api/a2/risk-score",
                 json=payload,
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=15.0
+                timeout=120.0
             )
             ai_result = response.json()
         except Exception as e:
@@ -308,13 +308,10 @@ class TriggerRiskAssessmentView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
-        output = ai_result.get("output", {})
-        factor_scores = output.get("factor_scores", {})
+        output = ai_result.get("output") or {}
+        factor_scores = output.get("factor_scores") or {}
 
-        output = ai_result.get("output", {})
-        factor_scores = output.get("factor_scores", {})
-
-        usage_metadata = output.get("usage_metadata", {})
+        usage_metadata = ai_result.get("usage_metadata") or {}
         log_agent_action(
             agent_id="A2",
             agent_name="Risk Assessment Agent",
@@ -509,7 +506,7 @@ class TriggerRecommendationView(APIView):
                 f"{settings.AI_SERVICE_URL}/api/a3/recommendation",
                 json=payload,
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=15.0
+                timeout=120.0
             )
             ai_result = response.json()
         except Exception as e:

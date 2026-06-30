@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Search, Plus, Eye, Filter } from "lucide-react";
-import { fetcher } from "@/lib/api";
+import { Search, Plus, Eye, Filter, Download } from "lucide-react";
+import { fetcher, reportsAPI } from "@/lib/api";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -19,6 +19,25 @@ export default function LoansPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const res = await reportsAPI.exportCSV("loans");
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `loans_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("Export failed", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const params = new URLSearchParams();
   if (search) params.set("search", search);
@@ -37,12 +56,20 @@ export default function LoansPage() {
         <div>
           <p className="text-[var(--text-muted)] text-sm mt-0.5">{total} total applications</p>
         </div>
-        {can("loans:write") && (
-          <Link href="/loans/new" className="btn btn-primary">
-            <Plus className="h-4 w-4 mr-2" />
-            New Application
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {can("reports:read") && (
+            <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+              <Download className="h-4 w-4 mr-2" />
+              {isExporting ? "Exporting..." : "Export CSV"}
+            </Button>
+          )}
+          {can("loans:write") && (
+            <Link href="/loans/new" className="btn btn-primary">
+              <Plus className="h-4 w-4 mr-2" />
+              New Application
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Pipeline Visualization */}

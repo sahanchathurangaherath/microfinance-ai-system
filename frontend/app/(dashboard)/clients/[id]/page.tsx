@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { ArrowLeft, FileText, Briefcase, DollarSign, Shield, Plus } from "lucide-react";
@@ -15,13 +15,16 @@ import { usePermissions } from "@/lib/permissions";
 
 const TABS = ["Overview", "KYC", "Loan History", "Activity"];
 
-export default function ClientDetailPage({ params }: { params: { id: string } }) {
+export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { can } = usePermissions();
   const [activeTab, setActiveTab] = useState("Overview");
+  
+  const resolvedParams = use(params);
+  const id = resolvedParams.id;
 
-  const { data: client, isLoading } = useSWR(`/clients/${params.id}/`, fetcher);
-  const { data: loans } = useSWR(`/loans/applications/?client=${params.id}`, fetcher);
-  const { data: kyc } = useSWR(`/kyc/?client=${params.id}`, fetcher);
+  const { data: client, isLoading } = useSWR(`/clients/${id}/`, fetcher);
+  const { data: loans } = useSWR(`/loans/applications/?client=${id}`, fetcher);
+  const { data: kyc } = useSWR(`/kyc/?client=${id}`, fetcher);
 
   const clientLoans = loans?.results || loans || [];
   const kycDocs = kyc?.results || kyc || [];
@@ -97,7 +100,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           </div>
           <div className="flex gap-2 flex-shrink-0">
             {can("clients:write") && <Button variant="outline" size="sm">Edit Profile</Button>}
-            {can("loans:write") && <Link href={`/loans/new?client=${params.id}`}><Button size="sm" icon={<Plus className="h-4 w-4" />}>New Loan</Button></Link>}
+            {can("loans:write") && <Link href={`/loans/new?client=${id}`}><Button size="sm" icon={<Plus className="h-4 w-4" />}>New Loan</Button></Link>}
           </div>
         </div>
       </div>
@@ -195,7 +198,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
       {activeTab === "Loan History" && (
         <div className="pt-6"> {/* FIX[BUG 18]: added pt-6 wrapper */}
-          <Card title="Loan Applications" action={can("loans:write") && <Link href={`/loans/new?client=${params.id}`}><Button size="sm" icon={<Plus className="h-3.5 w-3.5" />}>New Loan</Button></Link>}>
+          <Card title="Loan Applications" action={can("loans:write") && <Link href={`/loans/new?client=${id}`}><Button size="sm" icon={<Plus className="h-3.5 w-3.5" />}>New Loan</Button></Link>}>
             <Table columns={loanColumns} data={clientLoans} emptyMessage="No loan applications found for this client" />
           </Card>
         </div>

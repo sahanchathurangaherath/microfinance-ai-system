@@ -243,7 +243,7 @@ class TriggerA4ScanView(APIView):
                 f"{settings.AI_SERVICE_URL}/api/a4/check-repayments",
                 json={"loans": loans_payload, "today": str(date.today())},
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=30.0
+                timeout=120.0
             )
             ai_result = response.json()
         except Exception as e:

@@ -106,7 +106,7 @@ class AIHealthCheckView(APIView):
             response = httpx.get(
                 f"{settings.AI_SERVICE_URL}/health",
                 headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=5.0
+                timeout=60.0
             )
             is_up = response.status_code == 200
         except Exception as e:
@@ -311,7 +311,7 @@ class RetryAIRequestView(APIView):
         try:
             health = httpx.get(
                 f"{settings.AI_SERVICE_URL}/health",
-                timeout=5.0
+                timeout=60.0
             )
             if health.status_code != 200:
                 return Response(
