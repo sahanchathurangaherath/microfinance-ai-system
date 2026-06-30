@@ -43,7 +43,7 @@ def handle_ai_failure(
     }
     llm_flag = llm_flag_map.get(agent_id, "")
     llm_active = config(llm_flag, default=False, cast=bool) if llm_flag else False
-    llm_model = config("LLM_MODEL", default="gemini-2.0-flash") if llm_active else "rule-based"
+    llm_model = config("LOCAL_LLM_MODEL", default="qwen3:8b") if llm_active else "rule-based"
 
     # Create incident record with LLM context
     incident = SystemIncident.objects.create(
