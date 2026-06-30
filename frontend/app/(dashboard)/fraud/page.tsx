@@ -14,7 +14,7 @@ import { useState } from "react";
 export default function FraudPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const params = statusFilter ? `?is_resolved=${statusFilter}` : "";
-  const { data, error, isLoading, mutate } = useSWR(`/fraud/${params}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(`/fraud/alerts/${params}`, fetcher);
   const alerts = data?.results || data || [];
 
   const columns = [

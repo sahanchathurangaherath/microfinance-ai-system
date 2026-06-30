@@ -25,6 +25,8 @@ class FraudAlertSerializer(serializers.ModelSerializer):
     investigation = FraudInvestigationSerializer(read_only=True)
     compliance_actions = ComplianceActionSerializer(many=True, read_only=True)
 
+    is_resolved = serializers.SerializerMethodField()
+
     class Meta:
         model = FraudAlert
         fields = '__all__'
@@ -33,3 +35,6 @@ class FraudAlertSerializer(serializers.ModelSerializer):
         if obj.client:
             return f"{obj.client.first_name} {obj.client.last_name}"
         return None
+
+    def get_is_resolved(self, obj):
+        return obj.status in ['CLEARED', 'CONFIRMED', 'CLOSED']

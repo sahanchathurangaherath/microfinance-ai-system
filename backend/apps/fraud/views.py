@@ -130,10 +130,18 @@ class FraudAlertListView(generics.ListAPIView):
         qs = FraudAlert.objects.all()
         severity = self.request.query_params.get('severity')
         status_filter = self.request.query_params.get('status')
+        is_resolved = self.request.query_params.get('is_resolved')
+        
         if severity:
             qs = qs.filter(severity=severity)
         if status_filter:
             qs = qs.filter(status=status_filter)
+        if is_resolved:
+            resolved_statuses = ['CLEARED', 'CONFIRMED', 'CLOSED']
+            if is_resolved.lower() == 'true':
+                qs = qs.filter(status__in=resolved_statuses)
+            elif is_resolved.lower() == 'false':
+                qs = qs.exclude(status__in=resolved_statuses)
         return qs
 
 

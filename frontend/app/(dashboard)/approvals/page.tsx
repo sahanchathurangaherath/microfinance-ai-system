@@ -15,7 +15,7 @@ import Table from "@/components/ui/Table";
 export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const params = statusFilter ? `?status=${statusFilter}` : "";
-  const { data, error, isLoading, mutate } = useSWR(`/approvals/${params}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(`/approvals/pending/${params}`, fetcher);
   const approvals = data?.results || data || [];
 
   const columns = [
@@ -26,7 +26,7 @@ export default function ApprovalsPage() {
     { id: "status", header: "Decision", cell: (r: Record<string,unknown>) => <Badge status={String(r.status || r.decision || "PENDING")} /> },
     { id: "assigned", header: "Assigned To", cell: (r: Record<string,unknown>) => <span className="text-[13px] text-gray-500">{String(r.assigned_to || r.reviewer_name || "—")}</span> },
     { id: "date", header: "Submitted", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatRelativeTime(String(r.created_at || new Date()))}</span> },
-    { id: "action", header: "", cell: (r: Record<string,unknown>) => <Link href={`/loans/${(r.application as Record<string,unknown>)?.id || r.application_id || r.id}`}><Button size="sm" variant="ghost" icon={<ArrowRight className="h-3.5 w-3.5" />}>Review</Button></Link> },
+    { id: "action", header: "", cell: (r: Record<string,unknown>) => <Link href={`/loans/${(r.application as Record<string,unknown>)?.id || r.application_id || r.id}`} className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"><ArrowRight className="h-3.5 w-3.5" />Review</Link> },
   ];
 
   const pendingCount = approvals.filter((a: Record<string,unknown>) => a.status === "PENDING" || !a.decision).length;
