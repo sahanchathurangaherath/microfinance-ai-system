@@ -106,7 +106,7 @@ Return ONLY this JSON:
 Only include draft objects for channels in: {json.dumps(channels)}"""
 
         try:
-            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
+            output, usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
             # Fallback to template draft
             return self._template_draft(input_data)
@@ -136,7 +136,8 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
                 f"in {lang_name} ({tone} tone). "
                 f"Officer review and approval required before sending."
             ),
-            input_reference=f"comm:{comm_type}"
+            input_reference=f"comm:{comm_type}",
+            usage_metadata=usage
         )
 
    

@@ -23,13 +23,14 @@ class BaseAgent(ABC):
         confidence: float,
         rationale: str,
         input_reference: str,
-        status: str = "SUCCESS"
+        status: str = "SUCCESS",
+        usage_metadata: dict | None = None
     ) -> Dict:
         """
         Standard response format for every agent.
         This ensures every AI output is explainable and traceable.
         """
-        return {
+        response = {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name,
             "timestamp": datetime.utcnow().isoformat(),
@@ -39,6 +40,9 @@ class BaseAgent(ABC):
             "input_reference": input_reference,
             "output": output,
         }
+        if usage_metadata is not None:
+            response["usage_metadata"] = usage_metadata
+        return response
 
     def low_confidence_response(self, input_reference: str, reason: str) -> Dict:
        

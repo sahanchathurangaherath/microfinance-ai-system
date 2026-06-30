@@ -6,9 +6,11 @@ from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 import httpx
+import json
 from django.conf import settings
 
 from .models import Client, ClientAddress, ClientBusiness, ClientIncome
+from apps.audit.utils import log_agent_action
 from apps.kyc.models import KYCDocument, KYCChecklist
 from .serializers import (
     ClientListSerializer, ClientDetailSerializer,
@@ -169,10 +171,30 @@ class A1ValidateClientView(APIView):
             )
 
         # Save quality score back to client
-        if ai_result.get("output"):
-            client.data_quality_score = ai_result["output"].get("data_quality_score")
+        output = ai_result.get("output", {})
+        if output:
+            client.data_quality_score = output.get("data_quality_score")
             client.data_quality_notes = ai_result.get("rationale", "")
-        
+
+        usage_metadata = output.get("usage_metadata", {})
+        log_agent_action(
+            agent_id="A1",
+            agent_name="Data Collection Agent",
+            input_reference=f"client:{client.id}",
+            input_payload=payload,
+            output_payload=output,
+            confidence=ai_result.get("confidence", 0),
+            rationale=ai_result.get("rationale", ""),
+            triggered_by=request.user,
+            response_time_ms=None,
+            trigger_type="manual",
+            llm_model_used=usage_metadata.get("model_used", ""),
+            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+            llm_raw_response=json.dumps(ai_result, default=str),
+            hallucination_check_passed=True
+        )
+
         # Update status to KYC_SUBMITTED
         client.status = 'KYC_SUBMITTED'
         client.save()

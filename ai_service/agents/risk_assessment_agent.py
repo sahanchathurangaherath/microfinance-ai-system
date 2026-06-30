@@ -95,7 +95,7 @@ Risk Category rules:
 - Score 0-39   → HIGH   → required_action: BRANCH_MANAGER_ESCALATION"""
 
         try:
-            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
+            output, usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
             return self.low_confidence_response(
                 input_reference=f"loan:{loan_id}",
@@ -138,7 +138,8 @@ Risk Category rules:
             },
             confidence=confidence,
             rationale=output.get("ai_rationale", ""),
-            input_reference=f"loan:{loan_id}"
+            input_reference=f"loan:{loan_id}",
+            usage_metadata=usage
         )
 
     

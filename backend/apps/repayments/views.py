@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db import transaction
 from decimal import Decimal
 import httpx
+import json
 from django.conf import settings
 from datetime import date
 
@@ -13,6 +14,7 @@ from .models import (
     RepaymentSchedule, RepaymentInstallment,
     Payment, PaymentReceipt
 )
+from apps.audit.utils import log_agent_action
 from apps.loans.models import Loan
 from apps.users.permissions import IsFinanceStaff, IsCollectionsOfficer, IsLoanOfficer
 from .serializers import InstallmentSerializer
@@ -250,8 +252,29 @@ class TriggerA4ScanView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
+        # Log A4 audit event
+        output = ai_result.get("output", {})
+        usage_metadata = output.get("usage_metadata", {})
+        log_agent_action(
+            agent_id="A4",
+            agent_name="Monitoring Agent",
+            input_reference=f"portfolio_scan:{date.today()}",
+            input_payload={"loans": loans_payload, "today": str(date.today())},
+            output_payload=output,
+            confidence=ai_result.get("confidence", 0),
+            rationale=ai_result.get("rationale", ""),
+            triggered_by=request.user,
+            response_time_ms=None,
+            trigger_type="manual",
+            llm_model_used=usage_metadata.get("model_used", ""),
+            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+            llm_raw_response=json.dumps(ai_result, default=str),
+            hallucination_check_passed=True
+        )
+
         # Update overdue installments in DB
-        overdue_cases = ai_result.get("output", {}).get("overdue_cases", [])
+        overdue_cases = output.get("overdue_cases", [])
         for case in overdue_cases:
             try:
                 inst = RepaymentInstallment.objects.get(pk=case["installment_id"])

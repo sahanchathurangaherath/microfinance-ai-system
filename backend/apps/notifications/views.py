@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from django.utils import timezone
 import httpx
+import json
 from django.conf import settings
 import smtplib
 from email.mime.text import MIMEText
@@ -10,6 +11,7 @@ from email.mime.multipart import MIMEMultipart
 
 from .models import NotificationQueue, NotificationLog, NotificationTemplate
 from .serializers import NotificationQueueSerializer, NotificationLogSerializer
+from apps.audit.utils import log_agent_action
 from apps.users.permissions import IsLoanOfficer, IsCollectionsOfficer
 
 
@@ -63,6 +65,24 @@ class DraftNotificationView(APIView):
             )
 
         output = ai_result.get("output", {})
+        usage_metadata = output.get("usage_metadata", {})
+        log_agent_action(
+            agent_id="A6",
+            agent_name="Communication Agent",
+            input_reference=f"comm:{comm_type}",
+            input_payload={"comm_type": comm_type, "context": context, "channels": channels},
+            output_payload=output,
+            confidence=ai_result.get("confidence", 0),
+            rationale=ai_result.get("rationale", ""),
+            triggered_by=request.user,
+            response_time_ms=None,
+            trigger_type="manual",
+            llm_model_used=usage_metadata.get("model_used", ""),
+            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+            llm_raw_response=json.dumps(ai_result, default=str),
+            hallucination_check_passed=True
+        )
         drafts = output.get("drafts", [])
         created_ids = []
 

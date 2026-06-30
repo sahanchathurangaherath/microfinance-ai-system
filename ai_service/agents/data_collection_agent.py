@@ -65,7 +65,7 @@ Return ONLY this JSON structure:
 }}"""
 
         try:
-            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
+            output, usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
             # Local LLM failed — return low confidence to trigger Manual Mode
             return self.low_confidence_response(
@@ -100,7 +100,8 @@ Return ONLY this JSON structure:
             },
             confidence=confidence,
             rationale=output.get("rationale", ""),
-            input_reference=f"client:{client_id}"
+            input_reference=f"client:{client_id}",
+            usage_metadata=usage
         )
 
     

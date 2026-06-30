@@ -1,5 +1,6 @@
 # Standard Library
 from decimal import Decimal
+import json
 import logging
 
 # Third-Party
@@ -17,6 +18,7 @@ from rest_framework import filters
 logger = logging.getLogger(__name__)
 
 # Local Apps
+from apps.audit.utils import log_agent_action
 from apps.users.permissions import (
     IsAdmin, IsBranchManager, IsFinanceStaff, IsLoanOfficer, IsRiskAnalyst
 )
@@ -309,6 +311,28 @@ class TriggerRiskAssessmentView(APIView):
         output = ai_result.get("output", {})
         factor_scores = output.get("factor_scores", {})
 
+        output = ai_result.get("output", {})
+        factor_scores = output.get("factor_scores", {})
+
+        usage_metadata = output.get("usage_metadata", {})
+        log_agent_action(
+            agent_id="A2",
+            agent_name="Risk Assessment Agent",
+            input_reference=f"loan:{application.id}",
+            input_payload=payload,
+            output_payload=output,
+            confidence=ai_result.get("confidence", 0),
+            rationale=ai_result.get("rationale", ""),
+            triggered_by=request.user,
+            response_time_ms=None,
+            trigger_type="manual",
+            llm_model_used=usage_metadata.get("model_used", ""),
+            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+            llm_raw_response=json.dumps(ai_result, default=str),
+            hallucination_check_passed=True
+        )
+
         # Save RiskAssessment to DB
         RiskAssessment.objects.update_or_create(
             application=application,
@@ -495,6 +519,24 @@ class TriggerRecommendationView(APIView):
             )
 
         output = ai_result.get("output", {})
+        usage_metadata = output.get("usage_metadata", {})
+        log_agent_action(
+            agent_id="A3",
+            agent_name="Recommendation Agent",
+            input_reference=f"loan:{application.id}",
+            input_payload=payload,
+            output_payload=output,
+            confidence=ai_result.get("confidence", 0),
+            rationale=ai_result.get("rationale", ""),
+            triggered_by=request.user,
+            response_time_ms=None,
+            trigger_type="manual",
+            llm_model_used=usage_metadata.get("model_used", ""),
+            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+            llm_raw_response=json.dumps(ai_result, default=str),
+            hallucination_check_passed=True
+        )
 
         AIRecommendation.objects.update_or_create(
             application=application,

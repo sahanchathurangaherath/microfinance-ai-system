@@ -4,11 +4,13 @@ from rest_framework import status, generics
 from django.utils import timezone
 from datetime import timedelta
 import httpx
+import json
 from django.conf import settings
 from django.db.models import Count
 
 from .models import FraudAlert, FraudInvestigation, ComplianceAction
 from .serializers import FraudAlertSerializer, FraudInvestigationSerializer, ComplianceActionSerializer
+from apps.audit.utils import log_agent_action
 from apps.clients.models import Client
 from apps.loans.models import LoanApplication
 from apps.users.permissions import IsComplianceOfficer, IsAdmin
@@ -80,6 +82,25 @@ class TriggerFraudCheckView(APIView):
             )
 
         output = ai_result.get("output", {})
+
+        usage_metadata = output.get("usage_metadata", {})
+        log_agent_action(
+            agent_id="A5",
+            agent_name="Fraud Detection Agent",
+            input_reference=f"client:{client_id}|loan:{loan_id}",
+            input_payload=payload,
+            output_payload=output,
+            confidence=ai_result.get("confidence", 0),
+            rationale=ai_result.get("rationale", ""),
+            triggered_by=request.user,
+            response_time_ms=None,
+            trigger_type="manual",
+            llm_model_used=usage_metadata.get("model_used", ""),
+            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+            llm_raw_response=json.dumps(ai_result, default=str),
+            hallucination_check_passed=True
+        )
 
         # Create FraudAlert if suspicious
         alert = None

@@ -66,7 +66,7 @@ class FraudDetectionAgent(BaseAgent):
 
         # STEP 2: LLM DEBATE SECOND-PASS
         if USE_LLM and signals:
-            rule_output, rationale = self._llm_debate(
+            rule_output, rationale, usage = self._llm_debate(
                 rule_output, input_data, signals, rationale
             )
 
@@ -74,7 +74,8 @@ class FraudDetectionAgent(BaseAgent):
             output=rule_output,
             confidence=rule_output.get("llm_confidence") or confidence,
             rationale=rationale,
-            input_reference=f"client:{client_id}|loan:{loan_id}"
+            input_reference=f"client:{client_id}|loan:{loan_id}",
+            usage_metadata=usage
         )
 
    
@@ -84,7 +85,7 @@ class FraudDetectionAgent(BaseAgent):
     def _llm_debate(
         self, rule_output: Dict, input_data: Dict,
         signals: List[Dict], existing_rationale: str
-    ) -> tuple[Dict, str]:
+    ) -> tuple[Dict, str, dict]:
         """
         LLM internal debate:
         - 'Prosecutor' sub-prompt: find evidence supporting fraud
@@ -141,10 +142,10 @@ Return ONLY this JSON:
 }}"""
 
         try:
-            output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
+            output, usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception:
             # Silent fallback — rule-based output preserved unchanged
-            return rule_output, existing_rationale
+            return rule_output, existing_rationale, {}
 
         is_valid, reason = validate_a5_output(output)
         if not is_valid:
@@ -180,7 +181,7 @@ Return ONLY this JSON:
             f"Investigation focus: {output.get('investigation_focus', 'General review')}."
         )
 
-        return rule_output, rationale
+        return rule_output, rationale, usage
 
     
     # RULE-BASED FIRST PASS (original 9 signals — always runs)

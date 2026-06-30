@@ -74,9 +74,15 @@ class MonitoringAgent(BaseAgent):
                 }
                 overdue_cases.append(case)
 
+        usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "model_used": None,
+            "call_count": 0,
+        }
         # LLM second pass — behavioural prediction per overdue loan
         if USE_LLM and overdue_cases:
-            overdue_cases = self._llm_predict_patterns(overdue_cases, loans)
+            overdue_cases, usage = self._llm_predict_patterns(overdue_cases, loans)
 
         total_loans      = len(loans)
         overdue_loan_ids = {c["loan_id"] for c in overdue_cases}
@@ -108,7 +114,8 @@ class MonitoringAgent(BaseAgent):
             },
             confidence=confidence,
             rationale=rationale,
-            input_reference=f"portfolio_scan:{today_str}"
+            input_reference=f"portfolio_scan:{today_str}",
+            usage_metadata=usage
         )
 
    
@@ -133,7 +140,7 @@ class MonitoringAgent(BaseAgent):
 
     # LLM PREDICTION LAYER
 
-    def _llm_predict_patterns(self, overdue_cases: List[Dict], all_loans: List[Dict]) -> List[Dict]:
+    def _llm_predict_patterns(self, overdue_cases: List[Dict], all_loans: List[Dict]) -> tuple[List[Dict], dict]:
         """
         For each overdue loan, call the local LLM to classify the payment
         behaviour pattern and predict default probability.
@@ -152,6 +159,12 @@ class MonitoringAgent(BaseAgent):
         # Process each unique overdue loan (not each installment)
         processed_loan_ids = set()
         predictions = {}
+        usage = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "model_used": None,
+            "call_count": 0,
+        }
 
         for case in overdue_cases:
             loan_id = case["loan_id"]
@@ -187,12 +200,18 @@ Return ONLY this JSON:
 }}"""
 
             try:
-                output, _ = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
+                output, llm_usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
                 is_valid, _ = validate_a4_llm_output(output)
                 if is_valid:
+                    output["usage_metadata"] = llm_usage
                     predictions[loan_id] = output
+                    usage["prompt_tokens"] += llm_usage.get("prompt_tokens", 0)
+                    usage["completion_tokens"] += llm_usage.get("completion_tokens", 0)
+                    usage["call_count"] += 1
+                    if usage["model_used"] is None:
+                        usage["model_used"] = llm_usage.get("model_used")
             except Exception:
-                # Silent fallback — rule-based data remains; LLM fields stay None
+                # Silent fallback — rule-based data remains intact.
                 pass
 
         # Apply predictions to all cases for that loan
@@ -203,7 +222,7 @@ Return ONLY this JSON:
                 case["behavioral_pattern_label"]      = pred["behavioral_pattern_label"]
                 case["llm_recommended_action"]        = pred["recommended_action"]
 
-        return overdue_cases
+        return overdue_cases, usage
 
    
     # RULE-BASED HELPERS 
