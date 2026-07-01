@@ -735,8 +735,20 @@ class ProcessDisbursementView(APIView):
         authorized_by_id = request.data.get("authorized_by_id")
 
         if not authorized_by_id:
+            # Infer from ApprovalDecision
+            from apps.approvals.models import ApprovalDecision
+            manager_decision = ApprovalDecision.objects.filter(
+                workflow__application=application,
+                step='BRANCH_MANAGER',
+                decision='APPROVED'
+            ).order_by('-decided_at').first()
+            
+            if manager_decision and manager_decision.decided_by:
+                authorized_by_id = manager_decision.decided_by.id
+
+        if not authorized_by_id:
             return Response(
-                {"error": "authorized_by_id (Branch Manager user ID) is required."},
+                {"error": "authorized_by_id (Branch Manager user ID) is required and could not be inferred."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

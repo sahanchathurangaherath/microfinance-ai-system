@@ -65,6 +65,7 @@ class FraudDetectionAgent(BaseAgent):
         )
 
         # STEP 2: LLM DEBATE SECOND-PASS
+        usage = {}
         if USE_LLM and signals:
             rule_output, rationale, usage = self._llm_debate(
                 rule_output, input_data, signals, rationale
@@ -141,6 +142,7 @@ Return ONLY this JSON:
   "investigation_focus": "<specific area the Compliance Officer should examine first>"
 }}"""
 
+        usage = {}
         try:
             output, usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception:

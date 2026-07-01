@@ -5,9 +5,7 @@ from typing import Any, Dict
 class BaseAgent(ABC):
     """
     All AI agents must inherit from this class.
-
     """
-
     def __init__(self, agent_id: str, agent_name: str):
         self.agent_id = agent_id
         self.agent_name = agent_name
