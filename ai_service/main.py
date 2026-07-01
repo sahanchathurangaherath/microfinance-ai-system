@@ -66,6 +66,12 @@ def list_agents():
         ]
     }
 
+from agents.recommendation_agent import USE_LLM
+@app.get("/debug")
+def debug_info():
+    import sys
+    return {"USE_LLM": USE_LLM, "sys.path": sys.path}
+
 @app.post("/api/a1/validate-client")
 def validate_client(request: A1ValidateRequest, _=Depends(verify_api_key)):
     agent = DataCollectionAgent()

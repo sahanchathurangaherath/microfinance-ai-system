@@ -60,7 +60,6 @@ body {
 /* ─── Layout helpers ─────────────────────────────── */
 .page-shell {
   width: 100%;
-  max-width: 1440px;
   margin: 0 auto;
   padding: 1rem 1rem;
 }

@@ -22,23 +22,20 @@ export const createClientSchema = z.object({
 export type CreateClientFormData = z.infer<typeof createClientSchema>;
 
 export const clientAddressSchema = z.object({
-  address_type: z.enum(["HOME", "BUSINESS", "POSTAL"]),
+  address_type: z.string().min(1, "Address type is required"),
   address_line_1: z.string().min(1, "Address is required"),
   address_line_2: z.string().optional(),
   city: z.string().min(1, "City is required"),
   district: z.string().min(1, "District is required"),
   province: z.string().min(1, "Province is required"),
-  is_primary: z.boolean(),
+  is_primary: z.boolean().optional(),
 });
 
 export type ClientAddressFormData = z.infer<typeof clientAddressSchema>;
 
 export const clientBusinessSchema = z.object({
   business_name: z.string().min(1, "Business name is required"),
-  business_type: z.enum([
-    "SOLE_PROPRIETOR", "PARTNERSHIP", "PRIVATE_LIMITED",
-    "INFORMAL", "FARMING", "OTHER",
-  ]),
+  business_type: z.string().min(1, "Business type is required"),
   business_description: z.string().optional(),
   years_in_operation: z.number().min(0),
   number_of_employees: z.number().min(0),
@@ -49,9 +46,7 @@ export const clientBusinessSchema = z.object({
 export type ClientBusinessFormData = z.infer<typeof clientBusinessSchema>;
 
 export const clientIncomeSchema = z.object({
-  income_source: z.enum([
-    "BUSINESS", "SALARY", "AGRICULTURE", "REMITTANCE", "PENSION", "OTHER",
-  ]),
+  income_source: z.string().min(1, "Income source is required"),
   monthly_income: z.number().min(0, "Monthly income is required"),
   other_income: z.number().min(0),
   monthly_expenses: z.number().min(0),

@@ -153,7 +153,7 @@ export default function NewClientPage() {
       {step === 1 && (
         <Card title="Address Information" subtitle="Primary residential or business address">
           <form onSubmit={handleStep2} className="space-y-4">
-            <Select label="Address Type" options={addressTypeOptions} {...step2.register("address_type")} />
+            <Select label="Address Type" options={addressTypeOptions} error={step2.formState.errors.address_type?.message} {...step2.register("address_type")} />
             <Input label="Address Line 1 *" placeholder="Street number and name" error={step2.formState.errors.address_line_1?.message} {...step2.register("address_line_1")} />
             <Input label="Address Line 2" placeholder="Apartment, suite, etc. (optional)" {...step2.register("address_line_2")} />
             <div className="grid grid-cols-3 gap-4">
@@ -174,7 +174,7 @@ export default function NewClientPage() {
         <Card title="Business Information" subtitle="This step is optional" action={<button type="button" onClick={() => { setSkipBusiness(true); setStep(3); }} className="text-[13px] text-blue-600 hover:underline">Skip this step →</button>}>
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleStep3(); }}>
             <Input label="Business Name *" placeholder="e.g. Kamal's General Store" error={step3.formState.errors.business_name?.message} {...step3.register("business_name")} />
-            <Select label="Business Type *" options={businessTypeOptions} placeholder="Select type" error={step3.formState.errors.business_type?.message} {...step3.register("business_type")} />
+            <Select label="Business Type" options={businessTypeOptions} error={step3.formState.errors.business_type?.message} {...step3.register("business_type")} />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Years in Operation" type="number" min={0} {...step3.register("years_in_operation", { valueAsNumber: true })} />
               <Input label="Number of Employees" type="number" min={0} {...step3.register("number_of_employees", { valueAsNumber: true })} />
@@ -192,7 +192,7 @@ export default function NewClientPage() {
       {step === 3 && (
         <Card title="Income & Financial Details" subtitle="Monthly income and expense breakdown">
           <form onSubmit={handleStep4} className="space-y-4">
-            <Select label="Primary Income Source *" options={incomeSourceOptions} placeholder="Select source" error={step4.formState.errors.income_source?.message} {...step4.register("income_source")} />
+            <Select label="Income Source" options={incomeSourceOptions} error={step4.formState.errors.income_source?.message} {...step4.register("income_source")} />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Monthly Income (LKR) *" type="number" min={0} placeholder="0" error={step4.formState.errors.monthly_income?.message} {...step4.register("monthly_income", { valueAsNumber: true })} />
               <Input label="Other Income (LKR)" type="number" min={0} placeholder="0" {...step4.register("other_income", { valueAsNumber: true })} />

@@ -59,22 +59,28 @@ export default function NewLoanPage() {
   const { data: products } = useSWR("/loans/products/", fetcher);
   const productList = products?.results || products || [];
 
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<LoanApplicationFormData>({
+    resolver: zodResolver(loanApplicationSchema),
+    defaultValues: { requested_duration_months: 12 },
+  });
+
   // Pre-select client from URL param
   const preClientId = searchParams.get("client");
   const { data: preClient } = useSWR(preClientId ? `/clients/${preClientId}/` : null, fetcher);
   useEffect(() => {
-    if (preClient && !selectedClient) { setSelectedClient(preClient); setStep(1); }
-  }, [preClient]); // eslint-disable-line
+    if (preClient && !selectedClient) {
+      setSelectedClient(preClient);
+      setValue("client", Number(preClient.id));
+      setStep(1);
+    }
+  }, [preClient, selectedClient, setValue]);
 
   const { data: clientResults } = useSWR(
     clientSearch.length >= 2 ? `/clients/?search=${clientSearch}` : null, fetcher
   );
   const clientList = clientResults?.results || clientResults || [];
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<LoanApplicationFormData>({
-    resolver: zodResolver(loanApplicationSchema),
-    defaultValues: { requested_duration_months: 12 },
-  });
+  // ... useForm moved up
 
   const watchedAmount = watch("requested_amount") || 0;
   const watchedDuration = watch("requested_duration_months") || 12;

@@ -11,7 +11,7 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function CollectionsDashboard() {
-  const { data: collections, isLoading } = useSWR("/collections/", fetcher);
+  const { data: collections, isLoading } = useSWR("/collections/overdue/", fetcher);
   const { data: arrearsData } = useSWR("/reports/arrears/", fetcher);
   const overdue = collections?.results || collections || [];
 

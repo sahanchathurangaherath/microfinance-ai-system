@@ -10,16 +10,23 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import StatCard from "@/components/ui/StatCard";
 import Spinner from "@/components/ui/Spinner";
+import Modal from "@/components/ui/Modal";
 import { usePermissions } from "@/lib/permissions";
 import { useState, use } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { approvalsAPI } from "@/lib/api";
+import api from "@/lib/api";
 
 export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { can, role } = usePermissions();
   const toast = useToast();
   const [actionComments, setActionComments] = useState("");
   const [isActioning, setIsActioning] = useState(false);
+
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadType, setUploadType] = useState("APPLICATION_FORM");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   const resolvedParams = use(params);
   const id = resolvedParams.id;
@@ -56,6 +63,59 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
       setActionComments("");
     } catch { toast.error("Failed to submit decision"); }
     finally { setIsActioning(false); }
+  };
+
+  const handleSubmitReview = async () => {
+    setIsActioning(true);
+    try {
+      await api.post(`/loans/applications/${id}/submit/`);
+      toast.success("Application submitted for review successfully");
+      mutate();
+    } catch (error) {
+      toast.error("Failed to submit application");
+    } finally {
+      setIsActioning(false);
+    }
+  };
+
+  const handleTriggerAI = async () => {
+    setIsActioning(true);
+    try {
+      toast.info("Running AI Risk Assessment...");
+      await api.post(`/loans/applications/${id}/risk-assess/`);
+      toast.info("Running AI Recommendation...");
+      await api.post(`/loans/applications/${id}/recommend/`);
+      toast.success("AI Processing completed");
+      mutate();
+    } catch (error) {
+      toast.error("Failed during AI processing");
+    } finally {
+      setIsActioning(false);
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("document_type", uploadType);
+    formData.append("file", uploadFile);
+
+    try {
+      await api.post(`/loans/applications/${id}/documents/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Document uploaded successfully");
+      setIsUploadModalOpen(false);
+      setUploadFile(null);
+      mutate();
+    } catch (error) {
+      toast.error("Failed to upload document");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -104,7 +164,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 gap-6 ${(aiRec || riskAssessment) ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         {/* Left Column */}
         <div className="space-y-6">
           <Card title="Application Details">
@@ -127,36 +187,36 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
             </dl>
           </Card>
 
-          {cashflow && (
-            <Card title="Cashflow Summary">
-              <dl className="space-y-2.5">
-                {[
-                  ["Monthly Income", formatCurrency(cashflow.monthly_income)],
-                  ["Other Income", formatCurrency(cashflow.other_income)],
-                  ["Monthly Expenses", formatCurrency(cashflow.monthly_expenses)],
-                  ["Existing Debt", formatCurrency(cashflow.existing_loan_payments)],
-                  ["Proposed Payment", formatCurrency(cashflow.proposed_monthly_payment)],
-                  ["Net Cashflow", formatCurrency(cashflow.net_cashflow)],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between py-1 border-b border-gray-50 last:border-0">
-                    <dt className="text-[12px] text-[var(--text-muted)]">{label}</dt>
-                    <dd className="text-[13px] font-medium">{value}</dd>
+          {/* Documents */}
+          <Card title="Documents" action={can("loans:write") && <Button size="sm" variant="outline" onClick={() => setIsUploadModalOpen(true)}>Upload</Button>}>
+            {loan.documents?.length > 0 ? (
+              <div className="space-y-2">
+                {loan.documents.map((d: Record<string,unknown>, i: number) => (
+                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg border border-[var(--border-color)]">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium truncate">{String(d.file_name || d.document_type)}</p>
+                      <p className="text-[11px] text-gray-400">{formatRelativeTime(String(d.uploaded_at || new Date()))}</p>
+                    </div>
                   </div>
                 ))}
-              </dl>
-              {cashflow.debt_to_income_ratio != null && (
-                <div className={`mt-3 p-3 rounded-lg ${cashflow.debt_to_income_ratio < 0.35 ? "bg-emerald-50 border border-emerald-200" : cashflow.debt_to_income_ratio < 0.5 ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}>
-                  <p className="text-[12px] font-semibold">Debt-to-Income Ratio</p>
-                  <p className="text-2xl font-bold mt-0.5">{(cashflow.debt_to_income_ratio * 100).toFixed(1)}%</p>
-                  <p className="text-[11px] opacity-75 mt-0.5">{cashflow.debt_to_income_ratio < 0.35 ? "Healthy — Within acceptable range" : cashflow.debt_to_income_ratio < 0.5 ? "Moderate — Requires attention" : "High — Elevated risk"}</p>
-                </div>
-              )}
+              </div>
+            ) : (
+              <p className="text-[13px] text-[var(--text-muted)] text-center py-4">No documents uploaded yet</p>
+            )}
+          </Card>
+
+          {/* Officer Notes */}
+          {loan.officer_notes && (
+            <Card title="Officer Notes">
+              <p className="text-[13px] text-[var(--text-primary)] leading-relaxed">{loan.officer_notes}</p>
             </Card>
           )}
         </div>
 
         {/* Middle Column */}
-        <div className="space-y-6">
+        {(aiRec || riskAssessment) && (
+          <div className="space-y-6">
           {aiRec && (
             <Card title="AI Recommendation" subtitle="Powered by MicroFinance AI Engine">
               <div className="space-y-4">
@@ -226,6 +286,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
             </Card>
           )}
         </div>
+        )}
 
         {/* Right Column — Actions */}
         <div className="space-y-6">
@@ -233,10 +294,14 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
             <div className="space-y-4">
               {/* Role-based actions */}
               {(role === "loan_officer" || role === "admin") && loan.status === "DRAFT" && (
-                <Button className="w-full" icon={<FileText className="h-4 w-4" />}>Submit for Review</Button>
+                <Button className="w-full" icon={<FileText className="h-4 w-4" />} onClick={handleSubmitReview} loading={isActioning}>Submit for Review</Button>
               )}
 
-              {(role === "risk_analyst" || role === "admin") && (loan.status === "AI_SCREENING" || loan.status === "RISK_REVIEWED") && (
+              {(role === "risk_analyst" || role === "admin") && loan.status === "AI_SCREENING" && !riskAssessment && (
+                <Button className="w-full" variant="primary" icon={<Brain className="h-4 w-4" />} onClick={handleTriggerAI} loading={isActioning}>Run AI Assessment</Button>
+              )}
+
+              {(role === "risk_analyst" || role === "admin") && (loan.status === "AI_SCREENING" || loan.status === "RISK_REVIEWED") && riskAssessment && (
                 <div className="space-y-3">
                   <p className="text-[13px] font-semibold text-[var(--text-primary)]">Risk Analyst Review</p>
                   <textarea rows={3} placeholder="Enter your review notes..." value={actionComments} onChange={(e) => setActionComments(e.target.value)} className="form-input resize-none text-[13px]" />
@@ -284,33 +349,73 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </Card>
 
-          {/* Documents */}
-          <Card title="Documents" action={can("loans:write") && <Button size="sm" variant="outline">Upload</Button>}>
-            {loan.documents?.length > 0 ? (
-              <div className="space-y-2">
-                {loan.documents.map((d: Record<string,unknown>, i: number) => (
-                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg border border-[var(--border-color)]">
-                    <FileText className="h-4 w-4 text-blue-600" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate">{String(d.file_name || d.document_type)}</p>
-                      <p className="text-[11px] text-gray-400">{formatRelativeTime(String(d.uploaded_at || new Date()))}</p>
-                    </div>
+          {cashflow && (
+            <Card title="Cashflow Summary">
+              <dl className="space-y-2.5">
+                {[
+                  ["Monthly Income", formatCurrency(cashflow.monthly_income)],
+                  ["Other Income", formatCurrency(cashflow.other_income)],
+                  ["Monthly Expenses", formatCurrency(cashflow.monthly_expenses)],
+                  ["Existing Debt", formatCurrency(cashflow.existing_loan_payments)],
+                  ["Proposed Payment", formatCurrency(cashflow.proposed_monthly_payment)],
+                  ["Net Cashflow", formatCurrency(cashflow.net_cashflow)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between py-1 border-b border-gray-50 last:border-0">
+                    <dt className="text-[12px] text-[var(--text-muted)]">{label}</dt>
+                    <dd className="text-[13px] font-medium">{value}</dd>
                   </div>
                 ))}
-              </div>
-            ) : (
-              <p className="text-[13px] text-[var(--text-muted)] text-center py-4">No documents uploaded yet</p>
-            )}
-          </Card>
-
-          {/* Officer Notes */}
-          {loan.officer_notes && (
-            <Card title="Officer Notes">
-              <p className="text-[13px] text-[var(--text-primary)] leading-relaxed">{loan.officer_notes}</p>
+              </dl>
+              {cashflow.debt_to_income_ratio != null && (
+                <div className={`mt-3 p-3 rounded-lg ${cashflow.debt_to_income_ratio < 0.35 ? "bg-emerald-50 border border-emerald-200" : cashflow.debt_to_income_ratio < 0.5 ? "bg-amber-50 border border-amber-200" : "bg-red-50 border border-red-200"}`}>
+                  <p className="text-[12px] font-semibold">Debt-to-Income Ratio</p>
+                  <p className="text-2xl font-bold mt-0.5">{(cashflow.debt_to_income_ratio * 100).toFixed(1)}%</p>
+                  <p className="text-[11px] opacity-75 mt-0.5">{cashflow.debt_to_income_ratio < 0.35 ? "Healthy — Within acceptable range" : cashflow.debt_to_income_ratio < 0.5 ? "Moderate — Requires attention" : "High — Elevated risk"}</p>
+                </div>
+              )}
             </Card>
           )}
         </div>
       </div>
+
+      <Modal isOpen={isUploadModalOpen} onClose={() => !isUploading && setIsUploadModalOpen(false)} title="Upload Loan Document">
+        <form onSubmit={handleUpload} className="space-y-4">
+          <div>
+            <label className="form-label">Document Type</label>
+            <select
+              value={uploadType}
+              onChange={(e) => setUploadType(e.target.value)}
+              className="form-input px-3"
+              disabled={isUploading}
+            >
+              <option value="APPLICATION_FORM">Application Form</option>
+              <option value="BUSINESS_PLAN">Business Plan</option>
+              <option value="BANK_STATEMENT">Bank Statement</option>
+              <option value="COLLATERAL_DOC">Collateral Document</option>
+              <option value="GUARANTOR_DOC">Guarantor Document</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="form-label">File</label>
+            <input
+              type="file"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              className="form-input px-3 py-2"
+              required
+              disabled={isUploading}
+            />
+          </div>
+          <div className="pt-2 flex gap-3">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsUploadModalOpen(false)} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1" loading={isUploading}>
+              Upload
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -171,7 +171,7 @@ class A1ValidateClientView(APIView):
             )
 
         # Save quality score back to client
-        output = ai_result.get("output", {})
+        output = ai_result.get("output") or {}
         if output:
             client.data_quality_score = output.get("data_quality_score")
             client.data_quality_notes = ai_result.get("rationale", "")

@@ -57,7 +57,7 @@ class CreateClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = [
-            'nic_number', 'first_name', 'last_name', 'date_of_birth',
+            'id', 'nic_number', 'first_name', 'last_name', 'date_of_birth',
             'gender', 'phone_primary', 'phone_secondary', 'email'
         ]
 

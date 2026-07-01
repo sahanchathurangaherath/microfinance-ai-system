@@ -11,23 +11,31 @@ import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import StatCard from "@/components/ui/StatCard";
 import Table from "@/components/ui/Table";
+import Modal from "@/components/ui/Modal";
 import { usePermissions } from "@/lib/permissions";
+import { useToast } from "@/components/ui/Toast";
+import api from "@/lib/api";
 
 const TABS = ["Overview", "KYC", "Loan History", "Activity"];
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { can } = usePermissions();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("Overview");
   
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadType, setUploadType] = useState("NIC");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const resolvedParams = use(params);
   const id = resolvedParams.id;
 
   const { data: client, isLoading } = useSWR(`/clients/${id}/`, fetcher);
   const { data: loans } = useSWR(`/loans/applications/?client=${id}`, fetcher);
-  const { data: kyc } = useSWR(`/kyc/?client=${id}`, fetcher);
 
   const clientLoans = loans?.results || loans || [];
-  const kycDocs = kyc?.results || kyc || [];
+  const kycDocs = client?.documents || [];
 
   const loanColumns = [
     { id: "app", header: "App #", cell: (r: Record<string,unknown>) => <Link href={`/loans/${r.id}`}><span className="font-mono text-[13px] font-semibold text-blue-600 hover:underline">{String(r.application_number || "—")}</span></Link> },
@@ -42,6 +50,41 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.verification_status || "PENDING")} /> },
     { id: "uploaded", header: "Uploaded", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatDate(String(r.uploaded_at || new Date()))}</span> },
   ];
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("document_type", uploadType);
+    formData.append("file", uploadFile);
+
+    try {
+      await api.post(`/kyc/${id}/documents/`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Document uploaded successfully");
+      setIsUploadModalOpen(false);
+      setUploadFile(null);
+      // SWR mutate if we exposed it, or just reload the page for now
+      window.location.reload();
+    } catch (error) {
+      toast.error("Failed to upload document");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleVerifyClient = async () => {
+    try {
+      await api.patch(`/clients/${id}/`, { status: "VERIFIED" });
+      toast.success("Client marked as Verified");
+      window.location.reload();
+    } catch (error) {
+      toast.error("Failed to verify client");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -190,7 +233,19 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
       {activeTab === "KYC" && (
         <div className="pt-6"> {/* FIX[BUG 18]: added pt-6 wrapper */}
-          <Card title="KYC Documents" action={can("clients:write") && <Button size="sm" variant="outline" icon={<Plus className="h-3.5 w-3.5" />}>Upload Document</Button>}>
+          <Card 
+            title="KYC Documents" 
+            action={
+              <div className="flex gap-2">
+                {can("clients:write") && client?.status !== "VERIFIED" && (
+                  <Button size="sm" variant="secondary" onClick={handleVerifyClient}>Verify Client</Button>
+                )}
+                {can("clients:write") && (
+                  <Button size="sm" variant="outline" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setIsUploadModalOpen(true)}>Upload Document</Button>
+                )}
+              </div>
+            }
+          >
             <Table columns={kycColumns} data={kycDocs} emptyMessage="No KYC documents uploaded yet" />
           </Card>
         </div>
@@ -227,6 +282,45 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </Card>
         </div>
       )}
+
+      <Modal isOpen={isUploadModalOpen} onClose={() => !isUploading && setIsUploadModalOpen(false)} title="Upload KYC Document">
+        <form onSubmit={handleUpload} className="space-y-4">
+          <div>
+            <label className="form-label">Document Type</label>
+            <select
+              value={uploadType}
+              onChange={(e) => setUploadType(e.target.value)}
+              className="form-input px-3"
+              disabled={isUploading}
+            >
+              <option value="NIC">NIC</option>
+              <option value="PASSPORT">Passport</option>
+              <option value="DRIVING_LICENSE">Driving License</option>
+              <option value="UTILITY_BILL">Utility Bill</option>
+              <option value="BANK_STATEMENT">Bank Statement</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="form-label">File</label>
+            <input
+              type="file"
+              onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+              className="form-input px-3 py-2"
+              required
+              disabled={isUploading}
+            />
+          </div>
+          <div className="pt-2 flex gap-3">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsUploadModalOpen(false)} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1" loading={isUploading}>
+              Upload
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

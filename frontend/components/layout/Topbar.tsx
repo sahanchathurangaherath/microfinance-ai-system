@@ -27,7 +27,7 @@ export default function Topbar({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: notificationsData } = useSWR("/notifications/?is_read=false", fetcher, { 
+  const { data: notificationsData } = useSWR(null, fetcher, { 
     refreshInterval: 15000 
   });
   const unreadCount = notificationsData?.count ?? (Array.isArray(notificationsData?.results) ? notificationsData.results.length : 0);

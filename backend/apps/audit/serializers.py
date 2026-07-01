@@ -6,11 +6,16 @@ from .models import (
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
-    user_name = serializers.CharField(source='user.username', read_only=True)
+    user_name = serializers.SerializerMethodField()
 
     class Meta:
         model = AuditLog
         fields = '__all__'
+        
+    def get_user_name(self, obj):
+        if obj.user:
+            return obj.user.get_full_name() or obj.user.username
+        return "System"
 
 
 class AgentActionLogSerializer(serializers.ModelSerializer):

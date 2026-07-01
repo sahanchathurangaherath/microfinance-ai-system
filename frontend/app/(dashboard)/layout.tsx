@@ -163,8 +163,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto min-h-0"> {/* FIX: added min-h-0 */}
-          <div className="page-shell h-full"> {/* FIX: added h-full */}
+        <main className="flex-1 overflow-y-auto min-h-0 flex flex-col"> {/* FIX: added flex flex-col */}
+          <div className="page-shell flex-1 flex flex-col"> {/* FIX: added flex-1 flex flex-col */}
             {children}
           </div>
         </main>

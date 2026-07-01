@@ -56,10 +56,22 @@ class LoanApplicationDetailSerializer(serializers.ModelSerializer):
     status_history = StatusHistorySerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    risk_assessment = serializers.SerializerMethodField()
+    ai_recommendation = serializers.SerializerMethodField()
 
     class Meta:
         model = LoanApplication
         fields = '__all__'
+
+    def get_risk_assessment(self, obj):
+        if hasattr(obj, 'risk_assessment'):
+            return RiskAssessmentSerializer(obj.risk_assessment).data
+        return None
+
+    def get_ai_recommendation(self, obj):
+        if hasattr(obj, 'ai_recommendation'):
+            return AIRecommendationSerializer(obj.ai_recommendation).data
+        return None
 
 
 class CreateLoanApplicationSerializer(serializers.ModelSerializer):

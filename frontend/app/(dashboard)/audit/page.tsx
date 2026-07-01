@@ -21,7 +21,7 @@ export default function AuditPage() {
         <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
           <User className="h-3.5 w-3.5 text-blue-600" />
         </div>
-        <span className="text-[13px] font-medium truncate min-w-0">{String(r.username || r.user || "System")}</span> {/* FIX[BUG 15]: truncate min-w-0 */}
+        <span className="text-[13px] font-medium truncate min-w-0">{String(r.user_name || r.username || r.user || "System")}</span> {/* FIX[BUG 15]: truncate min-w-0 */}
       </div>
     )},
     { id: "action", header: "Action", cell: (r: Record<string,unknown>) => <Badge status={String(r.action_type || "UNKNOWN")} /> },

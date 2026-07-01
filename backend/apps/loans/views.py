@@ -254,7 +254,7 @@ class TriggerRiskAssessmentView(APIView):
     Called after application enters AI_SCREENING.
     Builds payload, calls A2, saves result to DB.
     """
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsRiskAnalyst]
 
     def post(self, request, pk):
         try:
@@ -371,7 +371,7 @@ class TriggerRiskAssessmentView(APIView):
         })
 
     def _build_credit_memo(self, application, ai_result):
-        output = ai_result.get("output", {})
+        output = ai_result.get("output") or {}
         signals = output.get("default_signals", [])
         return f"""
 CREDIT MEMO
@@ -465,7 +465,7 @@ class TriggerRecommendationView(APIView):
     Calls A3 after A2 risk assessment is complete.
     Should be triggered right after TriggerRiskAssessmentView.
     """
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsRiskAnalyst]
 
     def post(self, request, pk):
         try:
@@ -515,8 +515,38 @@ class TriggerRecommendationView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
-        output = ai_result.get("output", {})
-        usage_metadata = output.get("usage_metadata", {})
+        output = ai_result.get("output") or {}
+        usage_metadata = output.get("usage_metadata") or {}
+
+        # Guard: if AI returned null output (LLM failure/low confidence), bail early
+        if not output or not output.get("recommendation_type"):
+            log_agent_action(
+                agent_id="A3",
+                agent_name="Recommendation Agent",
+                input_reference=f"loan:{application.id}",
+                input_payload=payload,
+                output_payload=output,
+                confidence=ai_result.get("confidence", 0),
+                rationale=ai_result.get("rationale", "Low confidence or LLM failure."),
+                triggered_by=request.user,
+                response_time_ms=None,
+                trigger_type="manual",
+                llm_model_used=usage_metadata.get("model_used", ""),
+                prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
+                completion_tokens_used=usage_metadata.get("completion_tokens", 0),
+                llm_raw_response=json.dumps(ai_result, default=str),
+                hallucination_check_passed=False
+            )
+            return Response(
+                {
+                    "error": "AI Recommendation could not be generated (low confidence or LLM failure).",
+                    "reason": ai_result.get("rationale", "Low confidence or LLM failure."),
+                    "ai_status": ai_result.get("status", "UNKNOWN"),
+                    "agent_response": ai_result
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
         log_agent_action(
             agent_id="A3",
             agent_name="Recommendation Agent",
