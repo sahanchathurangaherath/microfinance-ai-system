@@ -57,7 +57,7 @@ class LoanApplicationListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         # Loan officers see their own applications; admins/managers see all
-        if user.role in ['admin', 'branch_manager', 'risk_analyst', 'credit_committee']:
+        if user.role in ['admin', 'branch_manager', 'risk_analyst', 'credit_committee', 'finance_staff', 'collections_officer', 'compliance_officer']:
             return LoanApplication.objects.all()
         return LoanApplication.objects.filter(created_by=user)
 

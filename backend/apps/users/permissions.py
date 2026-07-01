@@ -20,7 +20,7 @@ class IsAdminOrBranchManager(BasePermission):
 class IsLoanOfficer(BasePermission):
     def has_permission(self, request, view):
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return request.user.is_authenticated and request.user.role in ['admin', 'loan_officer', 'branch_manager', 'risk_analyst', 'finance_staff', 'credit_committee']
+            return request.user.is_authenticated and request.user.role in ['admin', 'loan_officer', 'branch_manager', 'risk_analyst', 'finance_staff', 'credit_committee', 'collections_officer', 'compliance_officer']
         return request.user.is_authenticated and request.user.role in ['admin', 'loan_officer', 'branch_manager']
 
 
