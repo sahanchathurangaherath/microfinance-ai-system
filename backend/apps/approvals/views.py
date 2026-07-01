@@ -63,7 +63,7 @@ class PendingCommitteeView(generics.ListAPIView):
 class AllPendingView(generics.ListAPIView):
     """Admin/Manager sees full pending queue across all steps."""
     serializer_class = ApprovalWorkflowSerializer
-    permission_classes = [IsBranchManager]
+    permission_classes = [IsBranchManager | IsRiskAnalyst | IsCreditCommittee]
 
     def get_queryset(self):
         return ApprovalWorkflow.objects.exclude(

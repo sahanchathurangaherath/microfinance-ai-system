@@ -105,6 +105,10 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 
+# Disable automatic trailing slash append for API requests
+# This prevents Django from trying to redirect POST requests to add trailing slashes
+APPEND_SLASH = False
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=config('JWT_ACCESS_TOKEN_LIFETIME_MINUTES', default=60, cast=int)),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=config('JWT_REFRESH_TOKEN_LIFETIME_DAYS', default=7, cast=int)),

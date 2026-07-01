@@ -16,7 +16,7 @@ class IsAdminOrBranchManager(BasePermission):
 
 class IsLoanOfficer(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['admin', 'loan_officer']
+        return request.user.is_authenticated and request.user.role in ['admin', 'loan_officer', 'branch_manager']
 
 
 class IsRiskAnalyst(BasePermission):
@@ -36,7 +36,7 @@ class IsCreditCommittee(BasePermission):
 
 class IsCollectionsOfficer(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['admin', 'collections_officer']
+        return request.user.is_authenticated and request.user.role in ['admin', 'collections_officer', 'branch_manager']
 
 
 class IsComplianceOfficer(BasePermission):
@@ -46,4 +46,4 @@ class IsComplianceOfficer(BasePermission):
 
 class IsFinanceStaff(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['admin', 'finance_staff']
+        return request.user.is_authenticated and request.user.role in ['admin', 'finance_staff', 'branch_manager']
