@@ -155,17 +155,8 @@ class SubmitApplicationView(APIView):
             reason="Application submitted by loan officer"
         )
 
-        # Move to AI_SCREENING immediately
-        log_status_change(
-            application=application,
-            from_status='SUBMITTED',
-            to_status='AI_SCREENING',
-            user=request.user,
-            reason="Entered AI screening queue"
-        )
-
         return Response({
-            "message": "Application submitted successfully. Now in AI screening queue.",
+            "message": "Application submitted successfully. Pending KYC validation.",
             "application_number": application.application_number,
             "status": application.status
         })

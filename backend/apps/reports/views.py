@@ -177,6 +177,10 @@ class ExportReportView(APIView):
             else:
                 writer.writerow(['No data available'])
             return response
+            
+        if fmt == 'export_json':
+            data = self.EXPORT_MAP[report_type]()
+            return Response(data)
 
         data = self.REPORT_MAP[report_type]()
 

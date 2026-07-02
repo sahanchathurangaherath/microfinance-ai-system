@@ -328,8 +328,8 @@ class ExportService:
         return list(DelinquencyCase.objects.exclude(
             status__in=['RESOLVED', 'WRITTEN_OFF']
         ).values(
-            'id', 'loan__id', 'loan__application__client__client_number', 
-            'bucket', 'total_overdue_amount', 'days_overdue', 'status', 'created_at'
+            'id', 'loan__id', 'loan__client__client_number', 
+            'bucket', 'total_overdue_amount', 'days_overdue', 'status', 'opened_at'
         ))
 
     @staticmethod
