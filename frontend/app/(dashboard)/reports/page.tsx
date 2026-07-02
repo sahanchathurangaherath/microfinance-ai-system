@@ -4,6 +4,9 @@ import { BarChart2, Download, Calendar, DollarSign, Users, FileText, TrendingUp,
 import Card from "@/components/ui/Card";
 import StatCard from "@/components/ui/StatCard";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
+import Table, { Column } from "@/components/ui/Table";
+import Badge from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/utils";
 
 import { useState } from "react";
@@ -14,6 +17,8 @@ import useSWR from "swr";
 export default function ReportsPage() {
   const toast = useToast();
   const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [isViewing, setIsViewing] = useState<string | null>(null);
+  const [viewData, setViewData] = useState<{ id: string; title: string; data: any } | null>(null);
   const { data: dashboard, isLoading } = useSWR("/reports/dashboard/", fetcher);
   const { data: disbursementsData } = useSWR("/reports/disbursements/", fetcher);
 
@@ -50,6 +55,18 @@ export default function ReportsPage() {
     }
   };
 
+  const handleView = async (reportId: string, title: string) => {
+    try {
+      setIsViewing(reportId);
+      const res = await reportsAPI.exportJSON(reportId);
+      setViewData({ id: reportId, title, data: res.data });
+    } catch (error) {
+      toast.error("Failed to load report data.");
+    } finally {
+      setIsViewing(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -82,7 +99,9 @@ export default function ReportsPage() {
                 <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">{r.title}</h3>
                 <p className="text-[13px] text-[var(--text-muted)] leading-relaxed">{r.desc}</p>
                 <div className="flex gap-2 mt-3">
-                  <Button size="sm" variant="outline" icon={<BarChart2 className="h-3.5 w-3.5" />} onClick={() => window.open(`http://localhost:8000/api/reports/export/?type=${r.id}&export_format=json`, '_blank')}>View</Button>
+                  <Button size="sm" variant="outline" icon={<BarChart2 className="h-3.5 w-3.5" />} onClick={() => handleView(r.id, r.title)} disabled={isViewing === r.id}>
+                    {isViewing === r.id ? "Loading..." : "View"}
+                  </Button>
                   <Button size="sm" variant="ghost" icon={<Download className="h-3.5 w-3.5" />} onClick={() => handleExport(r.id)} disabled={isExporting === r.id}>
                     {isExporting === r.id ? "Exporting..." : "Export"}
                   </Button>
@@ -146,6 +165,51 @@ export default function ReportsPage() {
           </div>
         </Card>
       </div>
+
+      <Modal isOpen={!!viewData} onClose={() => setViewData(null)} title={viewData?.title} size="xl">
+        {viewData?.data && Array.isArray(viewData.data) && viewData.data.length > 0 ? (
+          <div className="max-h-[60vh] overflow-y-auto overflow-x-auto rounded-xl border border-gray-100 shadow-sm bg-white">
+            <Table
+              data={viewData.data}
+              columns={Object.keys(viewData.data[0]).map((key) => {
+                const isAmount = key.includes('amount') || key.includes('balance');
+                const isId = key === 'id';
+                const isStatus = key.includes('status');
+                const isDate = key.includes('date') || key.includes('_at');
+
+                return {
+                  id: key,
+                  header: key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+                  className: isAmount ? "text-right" : "",
+                  accessor: key as any,
+                  cell: (row: any) => {
+                    const val = row[key];
+                    if (val === null || val === undefined) return <span className="text-gray-400">-</span>;
+                    if (isId) return <span className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{val}</span>;
+                    if (isStatus) return <Badge status={String(val)} />;
+                    if (typeof val === 'number' && isAmount) return <span className="font-medium text-gray-900">{formatCurrency(val)}</span>;
+                    if (isDate && typeof val === 'string' && !isNaN(Date.parse(val))) {
+                      return <span className="text-gray-600">{new Date(val).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>;
+                    }
+                    return <span className="text-gray-700">{String(val)}</span>;
+                  }
+                };
+              })}
+            />
+          </div>
+        ) : viewData?.data ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-[60vh] overflow-auto">
+            <pre className="text-xs text-gray-800 font-mono whitespace-pre-wrap">
+              {JSON.stringify(viewData.data, null, 2)}
+            </pre>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 py-8 text-center">No data available to display.</p>
+        )}
+        <div className="flex justify-end mt-6">
+          <Button onClick={() => setViewData(null)}>Close</Button>
+        </div>
+      </Modal>
     </div>
   );
 }

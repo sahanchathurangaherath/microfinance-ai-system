@@ -184,6 +184,8 @@ export const reportsAPI = {
   getPortfolio: () => api.get("reports/portfolio/"),
   exportCSV: (reportType: string) =>
     api.get("reports/export/", { params: { type: reportType, export_format: "csv" }, responseType: "blob" }),
+  exportJSON: (reportType: string) =>
+    api.get("reports/export/", { params: { type: reportType, export_format: "export_json" } }),
 };
 
 // ─── Audit API ───────────────────────────────────────────
