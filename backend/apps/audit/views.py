@@ -5,15 +5,19 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import (
     AuditLog, AgentActionLog, HumanDecisionLog, LoginAttempt,
-    AIServiceStatus, SystemIncident, ManualReviewCase
+    AIServiceStatus, SystemIncident, ManualReviewCase,
+    AgentConfiguration, AgentConfigChangeLog
 )
 from .serializers import (
     AuditLogSerializer, AgentActionLogSerializer,
     HumanDecisionLogSerializer, LoginAttemptSerializer,
     SystemIncidentSerializer, ManualReviewCaseSerializer,
-    AIServiceStatusSerializer
+    AIServiceStatusSerializer, AgentConfigurationSerializer,
+    AgentConfigChangeLogSerializer
 )
 from .utils import log_action
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import BasePermission
 from apps.users.permissions import IsAdmin, IsBranchManager, IsAdminOrBranchManager, IsRiskAnalyst, IsComplianceOfficer
 import httpx
 from django.conf import settings
@@ -337,3 +341,115 @@ class RetryAIRequestView(APIView):
             "reference_model": case.reference_model,
             "reference_id": case.reference_id,
         })
+
+
+class HasInternalAPIKey(BasePermission):
+    """
+    Simple check to verify the internal API Key used by FastAPI.
+    """
+    def has_permission(self, request, view):
+        api_key = request.META.get('HTTP_X_API_KEY')
+        return api_key == settings.AI_SERVICE_API_KEY
+
+
+class AgentConfigListView(APIView):
+    """Internal endpoint — FastAPI reads this every 30 seconds."""
+    permission_classes = [HasInternalAPIKey]
+
+    def get(self, request):
+        configs = AgentConfiguration.objects.all()
+        return Response(AgentConfigurationSerializer(configs, many=True).data)
+
+
+class AgentConfigUpdateView(APIView):
+    """Admin-only — toggle LLM, pause agent, change thresholds."""
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def patch(self, request, agent_id):
+        cfg = get_object_or_404(AgentConfiguration, agent_id=agent_id)
+        
+        fields_to_update = [
+            'llm_enabled', 'is_paused', 'pause_reason',
+            'confidence_threshold', 'model_override', 'daily_token_budget'
+        ]
+        
+        for field in fields_to_update:
+            if field in request.data:
+                old_val = getattr(cfg, field)
+                new_val = request.data[field]
+                
+                # Compare as strings to handle numeric and boolean changes correctly
+                if str(old_val) != str(new_val):
+                    AgentConfigChangeLog.objects.create(
+                        agent_id=agent_id,
+                        field_changed=field,
+                        old_value=str(old_val),
+                        new_value=str(new_val),
+                        changed_by=request.user,
+                        reason=request.data.get('change_reason', 'Updated via Control Panel')
+                    )
+                setattr(cfg, field, new_val)
+
+        cfg.last_changed_by = request.user
+        cfg.save()
+        return Response(AgentConfigurationSerializer(cfg).data)
+
+
+class AgentPerformanceView(APIView):
+    """Dashboard data — confidence trends, override rates, costs."""
+    permission_classes = [IsAuthenticated, IsAdminOrBranchManager]
+
+    def get(self, request, agent_id):
+        from django.db.models import Avg, Count, Sum
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.db import models
+
+        days = int(request.query_params.get('days', 30))
+        since = timezone.now() - timedelta(days=days)
+
+        logs = AgentActionLog.objects.filter(agent_id=agent_id, invoked_at__gte=since)
+
+        daily_stats = logs.extra(
+            select={'day': "date(invoked_at)"}
+        ).values('day').annotate(
+            avg_confidence=Avg('confidence'),
+            call_count=Count('id'),
+            avg_response_ms=Avg('response_time_ms'),
+            total_prompt_tokens=Sum('prompt_tokens_used'),
+            total_completion_tokens=Sum('completion_tokens_used'),
+            low_confidence_count=Count('id', filter=models.Q(confidence__lt=0.65)),
+        ).order_by('day')
+
+        # Override rate (A3 specific, but works for any agent with feedback)
+        override_data = {}
+        if agent_id == "A3":
+            from apps.loans.models import AIRecommendation
+            total_recs = AIRecommendation.objects.filter(reviewed_at__gte=since).count()
+            overrides = AIRecommendation.objects.filter(
+                reviewed_at__gte=since, officer_decision="OVERRIDDEN"
+            ).count()
+            override_data = {
+                "total_recommendations": total_recs,
+                "total_overrides": overrides,
+                "override_rate": round(overrides / total_recs * 100, 1) if total_recs else 0,
+            }
+
+        return Response({
+            "agent_id": agent_id,
+            "period_days": days,
+            "daily_stats": list(daily_stats),
+            "override_data": override_data,
+            "current_config": AgentConfigurationSerializer(
+                AgentConfiguration.objects.get(agent_id=agent_id)
+            ).data,
+        })
+
+
+class AgentConfigChangeLogListView(generics.ListAPIView):
+    """Allows administrators to view configuration audit logs."""
+    serializer_class = AgentConfigChangeLogSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrBranchManager]
+
+    def get_queryset(self):
+        return AgentConfigChangeLog.objects.all()

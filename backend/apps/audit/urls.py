@@ -4,7 +4,9 @@ from .views import (
     HumanDecisionLogListView, LoginAttemptListView, MyAuditTrailView,
     AIHealthCheckView, EnableManualModeView, DisableManualModeView,
     SystemIncidentListView, ResolveIncidentView,
-    ManualReviewQueueView, SubmitManualReviewView, RetryAIRequestView
+    ManualReviewQueueView, SubmitManualReviewView, RetryAIRequestView,
+    AgentConfigListView, AgentConfigUpdateView, AgentPerformanceView,
+    AgentConfigChangeLogListView
 )
 
 urlpatterns = [
@@ -24,4 +26,10 @@ urlpatterns = [
     path('system/manual-review/', ManualReviewQueueView.as_view()),
     path('system/manual-review/<int:case_id>/submit/', SubmitManualReviewView.as_view()),
     path('system/manual-review/<int:case_id>/retry/', RetryAIRequestView.as_view()),
+
+    # Live Agent Configuration endpoints
+    path('agent-config/', AgentConfigListView.as_view()),
+    path('agent-config/<str:agent_id>/', AgentConfigUpdateView.as_view()),
+    path('agent-performance/<str:agent_id>/', AgentPerformanceView.as_view()),
+    path('agent-config-logs/', AgentConfigChangeLogListView.as_view()),
 ]

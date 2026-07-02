@@ -76,27 +76,12 @@ def log_agent_action(
     completion_tokens_used=0,
     llm_raw_response='',
     hallucination_check_passed=True,
+    execution_mode='',
+    ai_bypassed=False,
+    bypass_reason='',
 ):
     """
     Log an AI agent action with full traceability.
-    
-    Args:
-        agent_id: Agent identifier (A1-A6)
-        agent_name: Human-readable agent name
-        input_reference: Reference to input (e.g., 'loan:123')
-        input_payload: Dict of input data
-        output_payload: Dict of output/recommendation
-        confidence: Confidence score (0-1 or 0-100)
-        status: SUCCESS, LOW_CONFIDENCE, ERROR, etc.
-        rationale: Explanation of the AI decision
-        triggered_by: User who triggered the agent (if manual)
-        response_time_ms: Time taken in milliseconds
-        trigger_type: 'manual' or 'automatic'
-        llm_model_used: Name of LLM model used (optional, for local or cloud LLM calls)
-        prompt_tokens_used: Number of prompt tokens (optional)
-        completion_tokens_used: Number of completion tokens (optional)
-        llm_raw_response: Raw response from LLM (optional)
-        hallucination_check_passed: Whether hallucination check passed (optional)
     """
     import hashlib
     import json
@@ -124,6 +109,9 @@ def log_agent_action(
         completion_tokens_used=completion_tokens_used,
         llm_raw_response=llm_raw_response,
         hallucination_check_passed=hallucination_check_passed,
+        execution_mode=execution_mode,
+        ai_bypassed=ai_bypassed,
+        bypass_reason=bypass_reason,
     )
 
 

@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     AuditLog, AgentActionLog, HumanDecisionLog, LoginAttempt,
-    AIServiceStatus, SystemIncident, ManualReviewCase
+    AIServiceStatus, SystemIncident, ManualReviewCase,
+    AgentConfiguration, AgentConfigChangeLog
 )
 
 
@@ -65,4 +66,20 @@ class ManualReviewCaseSerializer(serializers.ModelSerializer):
 class AIServiceStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIServiceStatus
+        fields = '__all__'
+
+
+class AgentConfigurationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentConfiguration
+        fields = '__all__'
+
+
+class AgentConfigChangeLogSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.CharField(
+        source='changed_by.get_full_name', read_only=True
+    )
+
+    class Meta:
+        model = AgentConfigChangeLog
         fields = '__all__'
