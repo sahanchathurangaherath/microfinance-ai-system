@@ -67,40 +67,17 @@ class TriggerFraudCheckView(APIView):
             "kyc_data": {},
         }
 
-        try:
-            response = httpx.post(
-                f"{settings.AI_SERVICE_URL}/api/a5/fraud-check",
-                json=payload,
-                headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=120.0
-            )
-            ai_result = response.json()
-        except Exception as e:
-            return Response(
-                {"error": f"AI service unavailable: {str(e)}"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
+        # Call A5 via Policy Engine
+        from apps.audit.policy_engine import evaluate_and_run_agent
+        ai_result = evaluate_and_run_agent(
+            agent_id="A5",
+            payload=payload,
+            triggered_by=request.user,
+            input_reference=f"client:{client_id}|loan:{loan_id}",
+            trigger_type="manual"
+        )
 
         output = ai_result.get("output", {})
-
-        usage_metadata = output.get("usage_metadata", {})
-        log_agent_action(
-            agent_id="A5",
-            agent_name="Fraud Detection Agent",
-            input_reference=f"client:{client_id}|loan:{loan_id}",
-            input_payload=payload,
-            output_payload=output,
-            confidence=ai_result.get("confidence", 0),
-            rationale=ai_result.get("rationale", ""),
-            triggered_by=request.user,
-            response_time_ms=None,
-            trigger_type="manual",
-            llm_model_used=usage_metadata.get("model_used", ""),
-            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
-            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
-            llm_raw_response=json.dumps(ai_result, default=str),
-            hallucination_check_passed=True
-        )
 
         # Create FraudAlert if suspicious
         alert = None

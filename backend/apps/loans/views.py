@@ -284,42 +284,18 @@ class TriggerRiskAssessmentView(APIView):
             }
         }
 
-        # Call A2
-        try:
-            response = httpx.post(
-                f"{settings.AI_SERVICE_URL}/api/a2/risk-score",
-                json=payload,
-                headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=120.0
-            )
-            ai_result = response.json()
-        except Exception as e:
-            return Response(
-                {"error": f"AI service unavailable: {str(e)}. Manual review required."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
+        # Call A2 via Policy Engine
+        from apps.audit.policy_engine import evaluate_and_run_agent
+        ai_result = evaluate_and_run_agent(
+            agent_id="A2",
+            payload=payload,
+            triggered_by=request.user,
+            input_reference=f"loan:{application.id}",
+            trigger_type="manual"
+        )
 
         output = ai_result.get("output") or {}
         factor_scores = output.get("factor_scores") or {}
-
-        usage_metadata = ai_result.get("usage_metadata") or {}
-        log_agent_action(
-            agent_id="A2",
-            agent_name="Risk Assessment Agent",
-            input_reference=f"loan:{application.id}",
-            input_payload=payload,
-            output_payload=output,
-            confidence=ai_result.get("confidence", 0),
-            rationale=ai_result.get("rationale", ""),
-            triggered_by=request.user,
-            response_time_ms=None,
-            trigger_type="manual",
-            llm_model_used=usage_metadata.get("model_used", ""),
-            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
-            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
-            llm_raw_response=json.dumps(ai_result, default=str),
-            hallucination_check_passed=True
-        )
 
         # Save RiskAssessment to DB
         RiskAssessment.objects.update_or_create(
@@ -492,69 +468,29 @@ class TriggerRecommendationView(APIView):
             "has_repayment_history": False,  # Updated in Phase 9
         }
 
-        try:
-            response = httpx.post(
-                f"{settings.AI_SERVICE_URL}/api/a3/recommendation",
-                json=payload,
-                headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=120.0
-            )
-            ai_result = response.json()
-        except Exception as e:
-            return Response(
-                {"error": f"AI service unavailable: {str(e)}"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
+        # Call A3 via Policy Engine
+        from apps.audit.policy_engine import evaluate_and_run_agent
+        ai_result = evaluate_and_run_agent(
+            agent_id="A3",
+            payload=payload,
+            triggered_by=request.user,
+            input_reference=f"loan:{application.id}",
+            trigger_type="manual"
+        )
 
         output = ai_result.get("output") or {}
-        usage_metadata = output.get("usage_metadata") or {}
-
-        # Guard: if AI returned null output (LLM failure/low confidence), bail early
+        
+        # Guard: if AI/Rule returned null output, bail early
         if not output or not output.get("recommendation_type"):
-            log_agent_action(
-                agent_id="A3",
-                agent_name="Recommendation Agent",
-                input_reference=f"loan:{application.id}",
-                input_payload=payload,
-                output_payload=output,
-                confidence=ai_result.get("confidence", 0),
-                rationale=ai_result.get("rationale", "Low confidence or LLM failure."),
-                triggered_by=request.user,
-                response_time_ms=None,
-                trigger_type="manual",
-                llm_model_used=usage_metadata.get("model_used", ""),
-                prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
-                completion_tokens_used=usage_metadata.get("completion_tokens", 0),
-                llm_raw_response=json.dumps(ai_result, default=str),
-                hallucination_check_passed=False
-            )
             return Response(
                 {
-                    "error": "AI Recommendation could not be generated (low confidence or LLM failure).",
-                    "reason": ai_result.get("rationale", "Low confidence or LLM failure."),
+                    "error": "AI Recommendation could not be generated.",
+                    "reason": ai_result.get("rationale", "No output from agent."),
                     "ai_status": ai_result.get("status", "UNKNOWN"),
                     "agent_response": ai_result
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
-
-        log_agent_action(
-            agent_id="A3",
-            agent_name="Recommendation Agent",
-            input_reference=f"loan:{application.id}",
-            input_payload=payload,
-            output_payload=output,
-            confidence=ai_result.get("confidence", 0),
-            rationale=ai_result.get("rationale", ""),
-            triggered_by=request.user,
-            response_time_ms=None,
-            trigger_type="manual",
-            llm_model_used=usage_metadata.get("model_used", ""),
-            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
-            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
-            llm_raw_response=json.dumps(ai_result, default=str),
-            hallucination_check_passed=True
-        )
 
         AIRecommendation.objects.update_or_create(
             application=application,

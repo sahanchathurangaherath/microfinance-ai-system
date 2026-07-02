@@ -238,40 +238,19 @@ class TriggerA4ScanView(APIView):
             except Exception:
                 continue
 
-        try:
-            response = httpx.post(
-                f"{settings.AI_SERVICE_URL}/api/a4/check-repayments",
-                json={"loans": loans_payload, "today": str(date.today())},
-                headers={"x-api-key": settings.AI_SERVICE_API_KEY},
-                timeout=120.0
-            )
-            ai_result = response.json()
-        except Exception as e:
-            return Response(
-                {"error": f"AI service unavailable: {str(e)}"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE
-            )
-
-        # Log A4 audit event
-        output = ai_result.get("output", {})
-        usage_metadata = output.get("usage_metadata", {})
-        log_agent_action(
+        payload = {"loans": loans_payload, "today": str(date.today())}
+        
+        # Call A4 via Policy Engine
+        from apps.audit.policy_engine import evaluate_and_run_agent
+        ai_result = evaluate_and_run_agent(
             agent_id="A4",
-            agent_name="Monitoring Agent",
-            input_reference=f"portfolio_scan:{date.today()}",
-            input_payload={"loans": loans_payload, "today": str(date.today())},
-            output_payload=output,
-            confidence=ai_result.get("confidence", 0),
-            rationale=ai_result.get("rationale", ""),
+            payload=payload,
             triggered_by=request.user,
-            response_time_ms=None,
-            trigger_type="manual",
-            llm_model_used=usage_metadata.get("model_used", ""),
-            prompt_tokens_used=usage_metadata.get("prompt_tokens", 0),
-            completion_tokens_used=usage_metadata.get("completion_tokens", 0),
-            llm_raw_response=json.dumps(ai_result, default=str),
-            hallucination_check_passed=True
+            input_reference=f"portfolio_scan:{date.today()}",
+            trigger_type="manual"
         )
+
+        output = ai_result.get("output", {})
 
         # Update overdue installments in DB
         overdue_cases = output.get("overdue_cases", [])
