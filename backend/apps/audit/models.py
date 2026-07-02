@@ -102,6 +102,9 @@ class AgentActionLog(models.Model):
     completion_tokens_used = models.IntegerField(default=0)
     llm_raw_response = models.TextField(blank=True)
     hallucination_check_passed = models.BooleanField(default=True)
+    execution_mode = models.CharField(max_length=30, blank=True)
+    ai_bypassed = models.BooleanField(default=False)
+    bypass_reason = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.agent_id} | {self.input_reference} | {self.status} at {self.invoked_at}"
@@ -290,3 +293,54 @@ class ManualReviewCase(models.Model):
     class Meta:
         db_table = 'manual_review_cases'
         ordering = ['-created_at']
+
+
+class AgentConfiguration(models.Model):
+    """
+    Live, runtime-controllable configuration for each AI agent.
+    Replaces .env flags for day-to-day control.
+    """
+    AGENT_CHOICES = [
+        ('A1', 'Data Collection'),
+        ('A2', 'Risk Assessment'),
+        ('A3', 'Recommendation'),
+        ('A4', 'Monitoring'),
+        ('A5', 'Fraud Detection'),
+        ('A6', 'Communication'),
+    ]
+
+    agent_id = models.CharField(max_length=5, choices=AGENT_CHOICES, unique=True)
+    llm_enabled = models.BooleanField(default=False)
+    is_paused = models.BooleanField(default=False)  # Kill switch
+    pause_reason = models.TextField(blank=True)
+    confidence_threshold = models.FloatField(default=0.65)
+    model_override = models.CharField(max_length=50, blank=True)  # force specific LLM for this agent
+    daily_token_budget = models.IntegerField(null=True, blank=True)   # null = unlimited
+    last_changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    last_changed_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.agent_id} — LLM:{self.llm_enabled} Paused:{self.is_paused}"
+
+    class Meta:
+        db_table = 'agent_configurations'
+        verbose_name = 'Agent Configuration'
+        verbose_name_plural = 'Agent Configurations'
+
+
+class AgentConfigChangeLog(models.Model):
+    """Immutable log — every config change is recorded."""
+    agent_id = models.CharField(max_length=5)
+    field_changed = models.CharField(max_length=50)
+    old_value = models.CharField(max_length=200)
+    new_value = models.CharField(max_length=200)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    reason = models.TextField(blank=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"ConfigChange: {self.agent_id}.{self.field_changed} at {self.changed_at}"
+
+    class Meta:
+        db_table = 'agent_config_change_logs'
+        ordering = ['-changed_at']

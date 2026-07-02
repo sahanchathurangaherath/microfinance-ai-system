@@ -12,7 +12,45 @@ import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { User, Shield, Key, CheckCircle, Mail, Phone, MapPin, BadgeCheck } from "lucide-react";
-import { getInitials } from "@/lib/utils";
+import { getInitials, cn } from "@/lib/utils";
+
+function getPermissionBadgeClass(perm: string): string {
+  const parts = perm.split(":");
+  const prefix = parts[0];
+  
+  const map: Record<string, string> = {
+    clients: "bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30",
+    loans: "bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30",
+    repayments: "bg-indigo-50 text-indigo-700 border-indigo-200/60 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30",
+    notifications: "bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30",
+    reports: "bg-cyan-50 text-cyan-700 border-cyan-200/60 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30",
+    profile: "bg-purple-50 text-purple-700 border-purple-200/60 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/30",
+    fraud: "bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30",
+    audit: "bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-950/20 dark:text-zinc-400 dark:border-zinc-900/30",
+    risk: "bg-orange-50 text-orange-700 border-orange-200/60 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/30",
+    approvals: "bg-teal-50 text-teal-700 border-teal-200/60 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30",
+  };
+  
+  return map[prefix] || "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950/20 dark:text-gray-400 dark:border-gray-900/30";
+}
+
+function getDotColor(perm: string): string {
+  const parts = perm.split(":");
+  const prefix = parts[0];
+  const map: Record<string, string> = {
+    clients: "bg-emerald-500",
+    loans: "bg-blue-500",
+    repayments: "bg-indigo-500",
+    notifications: "bg-amber-500",
+    reports: "bg-cyan-500",
+    profile: "bg-purple-500",
+    fraud: "bg-rose-500",
+    audit: "bg-zinc-400",
+    risk: "bg-orange-500",
+    approvals: "bg-teal-500",
+  };
+  return map[prefix] || "bg-gray-400";
+}
 
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
@@ -125,7 +163,7 @@ export default function ProfilePage() {
               <p className="text-[12px] text-[var(--text-muted)] text-center py-2">No permissions assigned.</p>
             ) : userPermissions.includes("*") ? (
               <div className="flex flex-wrap gap-2 mt-2">
-                <span className="inline-flex text-[11px] px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                <span className="inline-flex text-[11px] px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium cursor-default select-none">
                   Full System Access
                 </span>
               </div>
@@ -134,7 +172,7 @@ export default function ProfilePage() {
                 {userPermissions.map((perm) => (
                   <span
                     key={perm}
-                    className="inline-flex text-[11px] px-2 py-1 rounded-md bg-gray-100 text-gray-700 border border-gray-200 font-mono"
+                    className="inline-flex items-center text-[11px] px-2 py-0.5 rounded border bg-blue-50/50 text-blue-700 border-blue-200/60 font-mono shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors hover:bg-blue-100/60 hover:text-blue-800 hover:border-blue-300 cursor-default select-none"
                   >
                     {perm}
                   </span>

@@ -52,6 +52,7 @@ from apps.repayments.models import RepaymentSchedule, RepaymentInstallment
 from apps.approvals.models import ApprovalWorkflow, ApprovalDecision
 from apps.fraud.models import FraudAlert
 from apps.collections.models import DelinquencyCase, CollectionAction
+from apps.audit.models import AgentConfiguration, AgentConfigChangeLog
 
 
 # =============================================================
@@ -1001,6 +1002,30 @@ def seed_database():
     ).aggregate(
         total=__import__('django.db.models', fromlist=['Sum']).Sum('outstanding_balance')
     )['total'] or 0
+
+    # Seed default agent configuration settings (A1 - A6)
+    print("\n[7.5/8] Seeding live Agent Configurations...")
+    AgentConfiguration.objects.all().delete()
+    AgentConfigChangeLog.objects.all().delete()
+
+    agent_defaults = [
+        {"agent_id": "A1", "llm_enabled": False, "confidence_threshold": 0.70, "daily_token_budget": 50000},
+        {"agent_id": "A2", "llm_enabled": True, "confidence_threshold": 0.70, "daily_token_budget": 100000},
+        {"agent_id": "A3", "llm_enabled": True, "confidence_threshold": 0.70, "daily_token_budget": 100000},
+        {"agent_id": "A4", "llm_enabled": False, "confidence_threshold": 0.65, "daily_token_budget": 50000},
+        {"agent_id": "A5", "llm_enabled": True, "confidence_threshold": 0.75, "daily_token_budget": 100000},
+        {"agent_id": "A6", "llm_enabled": True, "confidence_threshold": 0.60, "daily_token_budget": 50000},
+    ]
+
+    for default in agent_defaults:
+        AgentConfiguration.objects.get_or_create(
+            agent_id=default["agent_id"],
+            defaults={
+                "llm_enabled": default["llm_enabled"],
+                "confidence_threshold": default["confidence_threshold"],
+                "daily_token_budget": default["daily_token_budget"],
+            }
+        )
 
     print(f"""
 ╔══════════════════════════════════════════════╗
