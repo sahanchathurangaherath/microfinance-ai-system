@@ -1,4 +1,6 @@
-MIN_CONFIDENCE = 0.30
+from decouple import config
+
+MIN_CONFIDENCE = config("LLM_CONFIDENCE_THRESHOLD", default=0.65, cast=float)
 
 VALID_RISK_CATEGORIES      = {"LOW", "MEDIUM", "HIGH"}
 VALID_RECOMMENDATION_TYPES = {
