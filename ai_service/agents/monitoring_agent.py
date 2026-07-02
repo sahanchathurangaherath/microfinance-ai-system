@@ -1,8 +1,7 @@
 
 """
 A4 — Monitoring Agent
-Rule-based overdue detection (always runs) +
-Optional LLM behavioural pattern prediction (when A4_USE_LLM=true).
+Rule-based overdue detection (always runs) 
 A4 cannot freeze accounts or modify loans — only flags and alerts.
 """
 

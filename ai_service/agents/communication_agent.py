@@ -1,8 +1,6 @@
 # ai_service/agents/communication_agent.py
 """
 A6 — Communication Agent
-LLM upgrade: the local model generates personalized, context-aware messages.
-Replaces fixed template substitution with intelligent drafting.
 Multilingual: English, Sinhala (si), Tamil (ta) based on client preference.
 HARD RULE: A6 only drafts. All messages require officer approval before sending.
 Nothing is sent automatically.
@@ -141,7 +139,7 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
         )
 
    
-    # TEMPLATE PATH (original MVP — preserved as fallback)
+    # TEMPLATE PATH 
    
 
     def _template_draft(self, input_data: Dict) -> Dict:

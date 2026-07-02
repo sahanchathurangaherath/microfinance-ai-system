@@ -146,8 +146,7 @@ Risk Category rules:
    
     def _rule_score(self, input_data: Dict) -> Dict:
         """
-        Original MVP 6-factor rule-based scoring.
-        Active when A2_USE_LLM=false in .env
+         rule-based scoring.
         """
         loan_id = input_data.get("loan_id")
         client  = input_data.get("client_data", {})

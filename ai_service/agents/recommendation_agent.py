@@ -146,7 +146,7 @@ Return ONLY this JSON:
         )
 
   
-    # RULE-BASED PATH (original MVP logic — preserved as fallback)
+    # RULE-BASED PATH 
     
 
     def _rule_recommend(self, input_data: Dict) -> Dict:

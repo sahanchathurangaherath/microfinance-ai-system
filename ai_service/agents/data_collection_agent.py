@@ -105,7 +105,7 @@ Return ONLY this JSON structure:
         )
 
     
-    # RULE-BASED PATH (original MVP logic )
+    # RULE-BASED PATH 
 
     def _rule_validate(self, client_id, client: Dict, kyc: Dict) -> Dict:
         """

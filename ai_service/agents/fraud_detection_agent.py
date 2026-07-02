@@ -2,7 +2,6 @@
 """
 A5 — Fraud Detection Agent (Hybrid)
 ALWAYS runs rule-based 9-signal check first (fast, deterministic, auditable).
-OPTIONALLY runs LLM second-pass debate when A5_USE_LLM=true.
 LLM reasons like a prosecutor (find fraud) AND a defense (find innocence),
 then synthesises a refined verdict.
 
