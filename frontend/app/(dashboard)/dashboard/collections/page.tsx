@@ -28,13 +28,18 @@ export default function CollectionsDashboard() {
   const overdueColumns = [
     { id: "loan", header: "Loan #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.loan_number || "LN0000001")}</span> },
     { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || "—")}</span> },
-    { id: "amount", header: "Overdue Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-semibold text-red-600">{formatCurrency(Number(r.overdue_amount || 0))}</span> },
+    { id: "amount", header: "Overdue Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-semibold text-red-600">{formatCurrency(Number(r.total_overdue_amount || 0))}</span> },
     { id: "dpd", header: "DPD", cell: (r: Record<string,unknown>) => {
-      const d = Number(r.days_past_due || 0);
+      const d = Number(r.days_overdue || 0);
       const c = d > 90 ? "text-red-800 font-bold" : d > 60 ? "text-red-600 font-semibold" : d > 30 ? "text-orange-600" : "text-amber-600";
       return <span className={`text-[13px] ${c}`}>{d} days</span>;
     }},
-    { id: "contact", header: "Last Contact", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{String(r.last_contact_date || "Never")}</span> },
+    { id: "contact", header: "Last Contact", cell: (r: Record<string,unknown>) => {
+      const actions = Array.isArray(r.actions) ? r.actions : [];
+      const lastAction = actions.length > 0 ? actions[0] as Record<string, unknown> : null;
+      const lastContactDate = lastAction?.performed_at ? String(lastAction.performed_at).split("T")[0] : "Never";
+      return <span className="text-[12px] text-gray-400">{lastContactDate}</span>;
+    }},
     { id: "action", header: "", cell: (r: Record<string,unknown>) => <Link href={`/collections/${r.id}`}><Button size="sm" variant="outline" icon={<ArrowRight className="h-3.5 w-3.5" />}>Action</Button></Link> },
   ];
 

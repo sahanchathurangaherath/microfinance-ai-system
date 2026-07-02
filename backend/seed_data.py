@@ -45,10 +45,13 @@ from apps.clients.models import Client, ClientAddress, ClientBusiness, ClientInc
 from apps.kyc.models import KYCDocument, KYCChecklist
 from apps.loans.models import (
     LoanProduct, LoanApplication, CashflowAssessment,
-    ApplicationStatusHistory, RiskAssessment, AIRecommendation, Loan
+    ApplicationStatusHistory, RiskAssessment, AIRecommendation, Loan,
+    Disbursement, DisbursementCondition
 )
 from apps.repayments.models import RepaymentSchedule, RepaymentInstallment
 from apps.approvals.models import ApprovalWorkflow, ApprovalDecision
+from apps.fraud.models import FraudAlert
+from apps.collections.models import DelinquencyCase, CollectionAction
 
 
 # =============================================================
@@ -377,6 +380,15 @@ def seed_database():
     # KYC objects (depend on Client)
     KYCDocument.objects.all().delete()
     KYCChecklist.objects.all().delete()
+    
+    # Delete Fraud and Collections
+    FraudAlert.objects.all().delete()
+    CollectionAction.objects.all().delete()
+    DelinquencyCase.objects.all().delete()
+    
+    # Delete Disbursements before Loans
+    Disbursement.objects.all().delete()
+    DisbursementCondition.objects.all().delete()
     
     # Then delete Loan and LoanApplication (depend on Client)
     Loan.objects.all().delete()
@@ -910,6 +922,74 @@ def seed_database():
         )
         wf_count += 1
     print(f"     ✓ {wf_count} approval workflow records created")
+
+    # ── 7.7 Create Fraud Alerts & Collections Cases ──────────
+    print("\n[7/8] Generating Fraud Alerts and Collections Cases...")
+    
+    compliance_officer = User.objects.filter(role='compliance_officer').first()
+    collections_officer = User.objects.filter(role='collections_officer').first()
+
+    # Fraud Alerts
+    alert_types = ['DUPLICATE_IDENTITY', 'APPLICATION_PATTERN', 'PAYMENT_ANOMALY', 'UNUSUAL_AMOUNT', 'KYC_ANOMALY', 'BEHAVIORAL']
+    severities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+    apps = list(LoanApplication.objects.all())
+    fraud_count = 0
+    if apps:
+        for _ in range(15):
+            app = random.choice(apps)
+            FraudAlert.objects.create(
+                client=app.client,
+                application=app,
+                alert_type=random.choice(alert_types),
+                severity=random.choice(severities),
+                status=random.choice(['OPEN', 'UNDER_INVESTIGATION', 'CLEARED', 'CONFIRMED']),
+                fraud_risk_score=random.uniform(50, 95),
+                ai_rationale="AI detected suspicious patterns matching historical fraud vectors. High velocity of applications linked to this device footprint.",
+                ai_confidence=random.uniform(0.6, 0.95),
+                assigned_to=compliance_officer if random.choice([True, False]) else None
+            )
+            fraud_count += 1
+    print(f"     ✓ {fraud_count} fraud alerts created")
+
+    # Delinquency Cases
+    case_count = 0
+    loans_with_overdue = Loan.objects.filter(schedule__installments__status='OVERDUE').distinct()
+    for loan in loans_with_overdue:
+        overdue_insts = RepaymentInstallment.objects.filter(schedule__loan=loan, status='OVERDUE')
+        total_overdue = sum(i.amount_due - i.amount_paid for i in overdue_insts)
+        
+        max_days = max((date.today() - i.due_date).days for i in overdue_insts) if overdue_insts else 0
+        if max_days < 0: max_days = 0
+        
+        if max_days <= 7:
+            bucket = 'BUCKET_1_7'
+        elif max_days <= 30:
+            bucket = 'BUCKET_8_30'
+        else:
+            bucket = 'BUCKET_OVER_30'
+            
+        case = DelinquencyCase.objects.create(
+            loan=loan,
+            status=random.choice(['OPEN', 'IN_PROGRESS', 'PROMISE_TO_PAY', 'ESCALATED']),
+            bucket=bucket,
+            total_overdue_amount=total_overdue,
+            days_overdue=max_days,
+            overdue_installments_count=overdue_insts.count(),
+            assigned_to=collections_officer if random.choice([True, False]) else None
+        )
+        
+        action_types = ['PHONE_CALL', 'SMS', 'EMAIL', 'FIELD_VISIT']
+        outcomes = ['NO_ANSWER', 'CONTACTED', 'PROMISED_PAYMENT', 'UNREACHABLE']
+        for _ in range(random.randint(0, 3)):
+            CollectionAction.objects.create(
+                case=case,
+                action_type=random.choice(action_types),
+                outcome=random.choice(outcomes),
+                notes="Attempted contact as per collection protocol.",
+                performed_by=collections_officer
+            )
+        case_count += 1
+    print(f"     ✓ {case_count} delinquency cases created for watchlist/overdue loans")
 
     # ── 7.7 Print Summary ────────────────────────────────────
     print("\n[7/8] Generating summary...")

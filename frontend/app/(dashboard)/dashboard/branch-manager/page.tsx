@@ -14,10 +14,12 @@ import Link from "next/link";
 export default function BranchManagerDashboard() {
   const { data: approvals, isLoading } = useSWR("/approvals/pending/manager-review/", fetcher);
   const { data: dashboardData } = useSWR("/reports/dashboard/", fetcher);
+  const { data: kpiData } = useSWR("/reports/kpis/", fetcher);
   const pending = normalizeArrayData<Record<string, unknown>>(approvals);
   const portfolio = dashboardData?.portfolio || {};
   const defaultRate = dashboardData?.default_rate || {};
   const arrearsBuckets = Array.isArray(dashboardData?.arrears) ? dashboardData.arrears : [];
+  const kpis = kpiData?.kpis || {};
 
   const getRiskLevel = (record: Record<string, unknown>) => {
     const seed = String((record.application as Record<string, unknown>)?.application_number || record.id || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -39,7 +41,7 @@ export default function BranchManagerDashboard() {
 
   const overdueBuckets = arrearsBuckets.length > 0
     ? arrearsBuckets.map((b: Record<string, unknown>) => ({
-        label: String(b.bucket || "UNKNOWN"),
+        label: String(b.bucket || "UNKNOWN").replace("BUCKET_", "").replace("_", " - ") + " days",
         count: Number(b.count || 0),
         amount: Number(b.total_overdue_amount || 0),
         color: "text-amber-600 bg-amber-50",
@@ -58,10 +60,10 @@ export default function BranchManagerDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Branch Portfolio" value={formatCurrency(Number(portfolio.total_outstanding || 0))} change={8} trend="up" icon={<Building2 className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" progress={78} />
-        <StatCard title="Pending My Approval" value={pending.length} change={3} changeLabel="new today" trend="neutral" icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
-        <StatCard title="Disbursed This Month" value={formatCurrency(Number(portfolio.total_principal_disbursed || 0))} change={15} trend="up" icon={<CheckCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
-        <StatCard title="PAR 30 Rate" value={`${Number(portfolio.portfolio_at_risk_percent || 0).toFixed(1)}%`} change={-0.5} changeLabel="vs last month" trend="up" icon={<TrendingDown className="h-5 w-5 text-red-600" />} iconBg="bg-red-50" />
+        <StatCard title="Total Branch Portfolio" value={formatCurrency(Number(portfolio.total_outstanding || 0))} icon={<Building2 className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" progress={78} />
+        <StatCard title="Pending My Approval" value={pending.length} icon={<Clock className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
+        <StatCard title="Disbursed This Month" value={formatCurrency(Number(portfolio.total_principal_disbursed || 0))} icon={<CheckCircle className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
+        <StatCard title="PAR 30 Rate" value={`${Number(portfolio.portfolio_at_risk_percent || 0).toFixed(1)}%`} icon={<TrendingDown className="h-5 w-5 text-red-600" />} iconBg="bg-red-50" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -84,10 +86,9 @@ export default function BranchManagerDashboard() {
         <Card title="Branch KPIs" subtitle="Current month performance">
           <div className="space-y-4">
             {[
-              { label: "Approval Rate", value: 78, color: "bg-emerald-500" },
-              { label: "Disbursement Rate", value: 91, color: "bg-blue-500" },
-              { label: "Collection Efficiency", value: 96, color: "bg-purple-500" },
-              { label: "Portfolio Quality", value: 83, color: "bg-cyan-500" },
+              { label: "AI Approval Rate", value: kpis.ai_acceptance_rate_percent || 0, color: "bg-emerald-500" },
+              { label: "Collection Efficiency", value: kpis.repayment_success_rate_percent || 0, color: "bg-purple-500" },
+              { label: "Default Rate", value: kpis.default_rate_percent || 0, color: "bg-cyan-500" },
             ].map((kpi) => (
               <div key={kpi.label}>
                 <div className="flex justify-between mb-1.5">
@@ -107,7 +108,7 @@ export default function BranchManagerDashboard() {
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: "Active Loans", value: String(portfolio.total_active_loans || 0), color: "bg-blue-50 text-blue-700" },
-              { label: "Total Clients", value: "—", color: "bg-purple-50 text-purple-700" },
+              { label: "Total Clients", value: String(dashboardData?.clients?.total || 0), color: "bg-purple-50 text-purple-700" },
               { label: "Avg Loan Size", value: formatCurrency(Number(portfolio.total_principal_disbursed || 0) / Math.max(Number(portfolio.total_active_loans || 1), 1)), color: "bg-emerald-50 text-emerald-700" },
               { label: "Write-offs", value: String(defaultRate.written_off || 0), color: "bg-red-50 text-red-700" },
             ].map((m) => (

@@ -63,7 +63,7 @@ export default function EmptyState({
 
   return (
     <div className={cn("flex flex-col items-center justify-center py-16 px-4 text-center animate-fadeIn", className)}>
-      <div className="mb-4 bg-gray-50 rounded-full p-4 border border-gray-100 shadow-sm">
+      <div className="mb-4 bg-gray-50 rounded-full h-20 w-20 flex items-center justify-center border border-gray-100 shadow-sm">
         {displayIcon}
       </div>
       <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">

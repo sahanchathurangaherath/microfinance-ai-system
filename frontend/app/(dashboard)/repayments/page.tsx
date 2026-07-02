@@ -8,10 +8,15 @@ import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
+import Button from "@/components/ui/Button";
 import { useState } from "react";
+import api from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 export default function RepaymentsPage() {
+  const toast = useToast();
   const [statusFilter, setStatusFilter] = useState("");
+  const [isTriggering, setIsTriggering] = useState(false);
   const params = statusFilter ? `?status=${statusFilter}` : "";
   const { data, error, isLoading, mutate } = useSWR(`/repayments/${params}`, fetcher);
   const repayments = data?.results || data || [];
@@ -32,10 +37,28 @@ export default function RepaymentsPage() {
     { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.payment_status || r.status || "PENDING")} /> },
   ];
 
+  const handleTriggerA4 = async () => {
+    try {
+      setIsTriggering(true);
+      await api.post("/repayments/a4/scan/");
+      mutate();
+      toast.success("AI Repayment Check (A4) completed successfully!");
+    } catch (err: any) {
+      toast.error("Failed to trigger A4: " + (err.response?.data?.error || err.message));
+    } finally {
+      setIsTriggering(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[var(--text-muted)] text-sm mt-0.5">Track loan installment payments</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">Track loan installment payments</p>
+        </div>
+        <Button onClick={handleTriggerA4} disabled={isTriggering}>
+          {isTriggering ? "Running..." : "Run AI Repayment Check"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

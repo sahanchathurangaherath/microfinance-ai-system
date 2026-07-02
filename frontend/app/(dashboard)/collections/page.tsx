@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Search, ArrowRight } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -61,15 +61,21 @@ export default function CollectionsPage() {
                 {collections.length === 0 ? (
                   <tr><td colSpan={6} className="text-center py-12 text-[var(--text-muted)]">No overdue loans found</td></tr>
                 ) : collections.map((r: Record<string,unknown>) => {
-                  const d = Number(r.days_past_due || 0);
+                  const d = Number(r.days_overdue || 0);
                   const c = d > 90 ? "text-red-800 font-bold" : d > 60 ? "text-red-600 font-semibold" : d > 30 ? "text-orange-600" : "text-amber-600";
+                  
+                  // Extract last contact date from actions array if available
+                  const actions = Array.isArray(r.actions) ? r.actions : [];
+                  const lastAction = actions.length > 0 ? actions[0] as Record<string, unknown> : null;
+                  const lastContactDate = lastAction?.performed_at ? formatRelativeTime(String(lastAction.performed_at)) : "Never";
+
                   return (
                     <tr key={String(r.id)} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-hover)] transition-colors">
                       <td className="px-4 py-3 text-sm"><span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.loan_number || "LN0000001")}</span></td>
                       <td className="px-4 py-3 text-sm"><span className="text-[var(--text-primary)]">{String(r.client_name || "—")}</span></td>
-                      <td className="px-4 py-3 text-sm"><span className="font-semibold text-red-600">{formatCurrency(Number(r.overdue_amount || 0))}</span></td>
+                      <td className="px-4 py-3 text-sm"><span className="font-semibold text-red-600">{formatCurrency(Number(r.total_overdue_amount || 0))}</span></td>
                       <td className="px-4 py-3 text-sm"><span className={c}>{d} days</span></td>
-                      <td className="px-4 py-3 text-sm"><span className="text-[var(--text-muted)]">{String(r.last_contact_date || "Never")}</span></td>
+                      <td className="px-4 py-3 text-sm"><span className="text-[var(--text-muted)]">{lastContactDate}</span></td>
                       <td className="px-4 py-3 text-sm"><Link href={`/collections/${r.id}`}><Button size="sm" variant="outline" icon={<ArrowRight className="h-3.5 w-3.5" />}>Action</Button></Link></td>
                     </tr>
                   )

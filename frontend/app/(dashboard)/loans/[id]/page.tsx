@@ -57,12 +57,53 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
     if (!actionComments.trim()) { toast.warning("Please add comments before making a decision"); return; }
     setIsActioning(true);
     try {
-      await approvalsAPI.makeDecision(Number(id), { decision, comments: actionComments });
+      if (loan.status === "AI_SCREENING" || loan.status === "RISK_REVIEWED") {
+        await approvalsAPI.riskDecision(Number(id), { decision, comments: actionComments });
+      } else if (loan.status === "MANAGER_REVIEW") {
+        await approvalsAPI.managerDecision(Number(id), { decision, comments: actionComments });
+      } else if (loan.status === "COMMITTEE_REVIEW") {
+        await approvalsAPI.committeeDecision(Number(id), { decision, comments: actionComments });
+      }
       toast.success(`Application ${decision.toLowerCase()} successfully`);
       mutate();
       setActionComments("");
     } catch { toast.error("Failed to submit decision"); }
     finally { setIsActioning(false); }
+  };
+
+  const handleDisburse = async () => {
+    setIsActioning(true);
+    try {
+      await api.post(`/loans/disbursements/${id}/process/`);
+      toast.success("Loan disbursed successfully");
+      mutate();
+    } catch (err: any) {
+      toast.error("Failed to disburse loan: " + (err.response?.data?.error || err.message));
+    } finally {
+      setIsActioning(false);
+    }
+  };
+
+  const handleTriggerA6 = async () => {
+    setIsActioning(true);
+    try {
+      toast.info("Drafting AI Message...");
+      await api.post("/notifications/draft/", {
+        comm_type: "LOAN_UPDATE",
+        client_id: loan.client?.id,
+        context: {
+          loan_status: loan.status,
+          loan_number: loan.application_number,
+          amount: loan.requested_amount
+        }
+      });
+      toast.success("AI draft completed");
+      mutate();
+    } catch (err: any) {
+      toast.error("Failed to draft message");
+    } finally {
+      setIsActioning(false);
+    }
   };
 
   const handleSubmitReview = async () => {
@@ -340,7 +381,11 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
               )}
 
               {(role === "finance_staff" || role === "admin") && loan.status === "APPROVED" && (
-                <Button className="w-full" variant="primary" icon={<CheckCircle className="h-4 w-4" />}>Process Disbursement</Button>
+                <Button className="w-full" variant="primary" icon={<CheckCircle className="h-4 w-4" />} onClick={handleDisburse} loading={isActioning}>Process Disbursement</Button>
+              )}
+
+              {(role === "loan_officer" || role === "admin") && (
+                <Button className="w-full mt-2" variant="outline" onClick={handleTriggerA6} loading={isActioning}>Draft Message (A6)</Button>
               )}
 
               {!["DRAFT", "AI_SCREENING", "RISK_REVIEWED", "MANAGER_REVIEW", "COMMITTEE_REVIEW", "APPROVED"].includes(loan.status) && (

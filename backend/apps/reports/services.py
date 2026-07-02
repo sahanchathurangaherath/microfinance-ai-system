@@ -298,3 +298,68 @@ class DashboardService:
                 "activities": list(activity),
             }
         }
+
+
+class ExportService:
+    """
+    Dedicated service for exporting raw database rows for CSV downloads,
+    rather than aggregated dashboard stats.
+    """
+
+    @staticmethod
+    def get_portfolio():
+        from apps.loans.models import Loan
+        return list(Loan.objects.filter(status='ACTIVE').values(
+            'id', 'client__client_number', 'principal_amount', 
+            'outstanding_balance', 'interest_rate', 'disbursed_at', 'expected_closure_date'
+        ))
+
+    @staticmethod
+    def get_default_rate():
+        from apps.loans.models import Loan
+        return list(Loan.objects.values(
+            'id', 'client__client_number', 'status', 
+            'principal_amount', 'outstanding_balance', 'disbursed_at', 'actual_closure_date'
+        ))
+
+    @staticmethod
+    def get_arrears_distribution():
+        from apps.collections.models import DelinquencyCase
+        return list(DelinquencyCase.objects.exclude(
+            status__in=['RESOLVED', 'WRITTEN_OFF']
+        ).values(
+            'id', 'loan__id', 'loan__application__client__client_number', 
+            'bucket', 'total_overdue_amount', 'days_overdue', 'status', 'created_at'
+        ))
+
+    @staticmethod
+    def get_disbursement_summary():
+        from apps.loans.models import Loan
+        return list(Loan.objects.exclude(disbursed_at__isnull=True).values(
+            'id', 'client__client_number', 'principal_amount', 
+            'disbursed_at', 'status'
+        ))
+
+    @staticmethod
+    def get_risk_distribution():
+        from apps.loans.models import RiskAssessment
+        return list(RiskAssessment.objects.values(
+            'id', 'application__id', 'application__client__client_number',
+            'risk_score', 'risk_category', 'confidence', 'generated_at'
+        ))
+
+    @staticmethod
+    def get_agent_performance():
+        from apps.loans.models import AIRecommendation
+        return list(AIRecommendation.objects.values(
+            'id', 'application__id', 'recommendation_type', 'confidence', 
+            'officer_decision', 'generated_at'
+        ))
+
+    @staticmethod
+    def get_fraud_report():
+        from apps.fraud.models import FraudAlert
+        return list(FraudAlert.objects.values(
+            'id', 'alert_type', 'severity', 'status', 'fraud_risk_score', 
+            'triggered_at'
+        ))

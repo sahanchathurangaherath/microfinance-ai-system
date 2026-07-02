@@ -12,7 +12,7 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function ComplianceDashboard() {
-  const { data: fraud } = useSWR("/fraud/", fetcher);
+  const { data: fraud } = useSWR("/fraud/alerts/", fetcher);
   const { data: audit } = useSWR("/audit/", fetcher);
   const { data: fraudReport } = useSWR("/reports/fraud/", fetcher);
   const { data: kycData } = useSWR("/kyc/", fetcher);
@@ -26,11 +26,34 @@ export default function ComplianceDashboard() {
     : 0;
   const openedAlerts = Array.isArray(fraudAlerts) ? fraudAlerts.length : 0;
 
+  const fraudTypeStats = fraudAlerts.reduce((acc: Record<string, {count: number, sev: string}>, curr: Record<string, unknown>) => {
+    const type = String(curr.alert_type || "UNKNOWN").replace(/_/g, " ");
+    if (!acc[type]) acc[type] = { count: 0, sev: String(curr.severity || "HIGH") };
+    acc[type].count += 1;
+    return acc;
+  }, {});
+
+  const fraudTypes = Object.keys(fraudTypeStats).map(key => ({
+    type: key,
+    count: fraudTypeStats[key].count,
+    sev: fraudTypeStats[key].sev
+  })).sort((a, b) => b.count - a.count).slice(0, 5);
+
+  const permissionChanges = auditLogs
+    .filter((log: Record<string, unknown>) => String(log.description || "").toLowerCase().includes("permission") || String(log.description || "").toLowerCase().includes("role"))
+    .slice(0, 4)
+    .map((log: Record<string, unknown>) => ({
+      user: String(log.user_name || log.username || "System"),
+      change: String(log.description || "Permissions updated"),
+      by: String(log.user_name || log.username || "admin"),
+      time: formatRelativeTime(String(log.timestamp || new Date()))
+    }));
+
   const fraudColumns = [
-    { id: "type", header: "Alert Type", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{String(r.flag_type || "DUPLICATE_NIC")}</span> },
+    { id: "type", header: "Alert Type", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{String(r.alert_type || "DUPLICATE_NIC").replace(/_/g, " ")}</span> },
     { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || "—")}</span> },
     { id: "severity", header: "Severity", cell: (r: Record<string,unknown>) => <Badge status={String(r.severity || "HIGH")} /> },
-    { id: "date", header: "Flagged", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatRelativeTime(String(r.created_at || new Date()))}</span> },
+    { id: "date", header: "Flagged", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatRelativeTime(String(r.triggered_at || new Date()))}</span> },
     { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.is_resolved ? "ACTIVE" : "PENDING")} /> },
     { id: "action", header: "", cell: (r: Record<string,unknown>) => <Link href={`/fraud/${r.id}`}><Button size="sm" variant="outline">Review</Button></Link> },
   ];
@@ -75,13 +98,7 @@ export default function ComplianceDashboard() {
 
         <Card title="Fraud Alerts by Type">
           <div className="space-y-2.5">
-            {[
-              { type: "Duplicate NIC", count: 5, sev: "HIGH" },
-              { type: "Suspicious Income", count: 3, sev: "MEDIUM" },
-              { type: "Multiple Applications", count: 4, sev: "MEDIUM" },
-              { type: "Address Mismatch", count: 2, sev: "LOW" },
-              { type: "Blacklist Match", count: 1, sev: "CRITICAL" },
-            ].map((f) => (
+            {fraudTypes.length > 0 ? fraudTypes.map((f: {type: string, count: number, sev: string}) => (
               <div key={f.type} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                 <span className="text-[13px] text-[var(--text-primary)]">{f.type}</span>
                 <div className="flex items-center gap-2">
@@ -89,23 +106,23 @@ export default function ComplianceDashboard() {
                   <Badge status={f.sev} className="text-[11px]" />
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-[13px] text-gray-500 py-4 text-center">No fraud alerts found</p>
+            )}
           </div>
         </Card>
 
         <Card title="Recent Permission Changes">
           <div className="space-y-3">
-            {[
-              { user: "Kamal Perera", change: "loan_officer → branch_manager", by: "admin", time: "2h ago" },
-              { user: "Sunil Dias", change: "risk_analyst → loan_officer", by: "admin", time: "1d ago" },
-              { user: "Amara Silva", change: "New: compliance_officer", by: "admin", time: "3d ago" },
-            ].map((c, i) => (
+            {permissionChanges.length > 0 ? permissionChanges.map((c: {user: string, change: string, by: string, time: string}, i: number) => (
               <div key={i} className="p-3 rounded-lg border border-[var(--border-color)]">
                 <p className="text-[13px] font-semibold text-[var(--text-primary)]">{c.user}</p>
                 <p className="text-[12px] text-gray-500 mt-0.5">{c.change}</p>
                 <p className="text-[11px] text-gray-400 mt-1">By {c.by} · {c.time}</p>
               </div>
-            ))}
+            )) : (
+              <p className="text-[13px] text-gray-500 py-4 text-center border border-dashed rounded-lg">No recent changes</p>
+            )}
           </div>
         </Card>
       </div>

@@ -31,7 +31,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const resolvedParams = use(params);
   const id = resolvedParams.id;
 
-  const { data: client, isLoading } = useSWR(`/clients/${id}/`, fetcher);
+  const { data: client, isLoading, mutate: mutateClient } = useSWR(`/clients/${id}/`, fetcher);
   const { data: loans } = useSWR(`/loans/applications/?client=${id}`, fetcher);
 
   const clientLoans = loans?.results || loans || [];
@@ -49,6 +49,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     { id: "type", header: "Document Type", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.document_type || "—").replace(/_/g, " ")}</span> },
     { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.verification_status || "PENDING")} /> },
     { id: "uploaded", header: "Uploaded", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatDate(String(r.uploaded_at || new Date()))}</span> },
+    { id: "actions", header: "Actions", cell: (r: Record<string,unknown>) => r.file ? <a href={String(r.file)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-[13px]">View</a> : null },
   ];
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -67,8 +68,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       toast.success("Document uploaded successfully");
       setIsUploadModalOpen(false);
       setUploadFile(null);
-      // SWR mutate if we exposed it, or just reload the page for now
-      window.location.reload();
+      mutateClient();
     } catch (error) {
       toast.error("Failed to upload document");
     } finally {
@@ -80,7 +80,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     try {
       await api.patch(`/clients/${id}/`, { status: "VERIFIED" });
       toast.success("Client marked as Verified");
-      window.location.reload();
+      mutateClient();
     } catch (error) {
       toast.error("Failed to verify client");
     }
@@ -302,7 +302,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </select>
           </div>
           <div>
-            <label className="form-label">File</label>
+            <label className="form-label flex justify-between">
+              File
+              <span className="text-[11px] text-gray-400 font-normal">Max 5MB (PDF, JPG, PNG)</span>
+            </label>
             <input
               type="file"
               onChange={(e) => setUploadFile(e.target.files?.[0] || null)}

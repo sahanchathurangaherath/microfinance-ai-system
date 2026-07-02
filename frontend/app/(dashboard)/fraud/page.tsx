@@ -10,32 +10,54 @@ import Button from "@/components/ui/Button";
 import Table from "@/components/ui/Table";
 import StatCard from "@/components/ui/StatCard";
 import { useState } from "react";
+import api from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
 
 export default function FraudPage() {
+  const toast = useToast();
   const [statusFilter, setStatusFilter] = useState("");
+  const [isTriggering, setIsTriggering] = useState(false);
   const params = statusFilter ? `?is_resolved=${statusFilter}` : "";
   const { data, error, isLoading, mutate } = useSWR(`/fraud/alerts/${params}`, fetcher);
   const alerts = data?.results || data || [];
 
   const columns = [
-    { id: "type", header: "Flag Type", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{String(r.flag_type || "UNKNOWN").replace(/_/g, " ")}</span> },
+    { id: "type", header: "Flag Type", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{String(r.alert_type || "UNKNOWN").replace(/_/g, " ")}</span> },
     { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || (r.client as Record<string,unknown>)?.first_name || "—")}</span> },
-    { id: "app", header: "Application", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] text-blue-600">{String(r.application_number || "—")}</span> },
+    { id: "app", header: "Application", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] text-blue-600">{String(r.application || "—")}</span> },
     { id: "severity", header: "Severity", cell: (r: Record<string,unknown>) => <Badge status={String(r.severity || "MEDIUM")} /> },
-    { id: "desc", header: "Details", cell: (r: Record<string,unknown>) => <span className="text-[13px] text-gray-600 truncate max-w-xs block">{String(r.description || r.flag_description || "—")}</span> },
+    { id: "desc", header: "Details", cell: (r: Record<string,unknown>) => <span className="text-[13px] text-gray-600 truncate max-w-xs block">{String(r.ai_rationale || "—")}</span> },
     { id: "resolved", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={r.is_resolved ? "ACTIVE" : "PENDING"}>{r.is_resolved ? "Resolved" : "Open"}</Badge> },
-    { id: "date", header: "Flagged", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatRelativeTime(String(r.created_at || new Date()))}</span> },
-    { id: "action", header: "", cell: () => <Button size="sm" variant="ghost" icon={<Eye className="h-3.5 w-3.5" />}>Review</Button> },
+    { id: "date", header: "Flagged", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatRelativeTime(String(r.triggered_at || new Date()))}</span> },
+    { id: "action", header: "", cell: (r: Record<string,unknown>) => <Button size="sm" variant="ghost" icon={<Eye className="h-3.5 w-3.5" />}>Review</Button> },
   ];
 
   const openCount = alerts.filter((a: Record<string,unknown>) => !a.is_resolved).length;
   const criticalCount = alerts.filter((a: Record<string,unknown>) => String(a.severity || "").toUpperCase() === "CRITICAL").length;
   const resolvedCount = alerts.filter((a: Record<string,unknown>) => a.is_resolved).length;
 
+  const handleTriggerA5 = async () => {
+    try {
+      setIsTriggering(true);
+      await api.post("/fraud/check/");
+      mutate();
+      toast.success("AI Fraud Check (A5) completed successfully!");
+    } catch (err: any) {
+      toast.error("Failed to trigger A5: " + (err.response?.data?.error || err.message));
+    } finally {
+      setIsTriggering(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[var(--text-muted)] text-sm mt-0.5">Monitor and investigate flagged activities</p>
+      <div className="flex justify-between items-end">
+        <div>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">Monitor and investigate flagged activities</p>
+        </div>
+        <Button onClick={handleTriggerA5} disabled={isTriggering}>
+          {isTriggering ? "Running..." : "Run AI Fraud Check"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

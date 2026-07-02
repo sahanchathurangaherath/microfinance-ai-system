@@ -19,11 +19,24 @@ export default function LoanOfficerDashboard() {
   const recentClients = clients?.results?.slice(0, 5) || [];
 
   const counts = {
-    total: applications.length || 18,
-    draft: applications.filter((l: Record<string,unknown>) => l.status === "DRAFT").length || 4,
-    approved: applications.filter((l: Record<string,unknown>) => l.status === "APPROVED").length || 5,
-    rejected: applications.filter((l: Record<string,unknown>) => l.status === "REJECTED").length || 2,
+    total: applications.length,
+    draft: applications.filter((l: Record<string,unknown>) => l.status === "DRAFT").length,
+    approved: applications.filter((l: Record<string,unknown>) => l.status === "APPROVED").length,
+    rejected: applications.filter((l: Record<string,unknown>) => l.status === "REJECTED").length,
   };
+
+  const tasks = applications
+    .filter((l: Record<string,unknown>) => l.status === "DRAFT" || l.status === "SUBMITTED")
+    .map((l: Record<string,unknown>) => ({
+      task: l.status === "DRAFT" ? `Complete application ${l.application_number || 'draft'}` : `Follow up on ${l.application_number}`,
+      done: false
+    }))
+    .slice(0, 4);
+    
+  if (tasks.length === 0) {
+    tasks.push({ task: "Review daily schedule", done: true });
+    tasks.push({ task: "Follow up with active clients", done: true });
+  }
 
   const pipelineColumns = [
     { id: "app_no", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.application_number || "LA0000001")}</span> },
@@ -85,29 +98,14 @@ export default function LoanOfficerDashboard() {
                   <Badge status={String(c.status || "PENDING")} className="ml-auto text-[11px]" />
                 </Link>
               )) : (
-                [{ name: "Kamal Perera", num: "CLT000001", status: "ACTIVE" },
-                 { name: "Sunil Fernando", num: "CLT000002", status: "VERIFIED" },
-                 { name: "Amara Silva", num: "CLT000003", status: "PENDING" }].map((c) => (
-                  <div key={c.num} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-700 text-[11px] font-bold">{c.name[0]}</span>
-                    </div>
-                    <div className="min-w-0 flex-1"><p className="text-[13px] font-medium truncate">{c.name}</p><p className="text-[11px] text-gray-400">{c.num}</p></div>
-                    <Badge status={c.status} className="text-[11px]" />
-                  </div>
-                ))
+                <div className="text-[13px] text-gray-500 py-4 text-center border border-dashed rounded-lg">No recent clients found</div>
               )}
             </div>
           </Card>
 
           <Card title="Today's Tasks">
             <div className="space-y-2.5">
-              {[
-                { task: "Complete cashflow for LA0000012", done: false },
-                { task: "Upload documents for Perera K.", done: true },
-                { task: "Submit LA0000014 for review", done: false },
-                { task: "Follow up with Nimal S.", done: true },
-              ].map((t, i) => (
+              {tasks.map((t: {task: string, done: boolean}, i: number) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${t.done ? "bg-emerald-500 border-emerald-500" : "border-gray-300"}`}>
                     {t.done && <CheckCircle className="h-3 w-3 text-white" />}

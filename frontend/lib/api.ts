@@ -146,8 +146,12 @@ export const approvalsAPI = {
   getApprovals: (params?: Record<string, string>) =>
     api.get("approvals/", { params }),
   getApproval: (id: number) => api.get(`approvals/${id}/`),
-  makeDecision: (id: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${id}/decide/`, data),
+  riskDecision: (id: number, data: Record<string, unknown>) =>
+    api.post(`approvals/${id}/risk-decision/`, data),
+  managerDecision: (id: number, data: Record<string, unknown>) =>
+    api.post(`approvals/${id}/manager-decision/`, data),
+  committeeDecision: (id: number, data: Record<string, unknown>) =>
+    api.post(`approvals/${id}/committee-vote/`, data),
 };
 
 // ─── Repayments API ──────────────────────────────────────
@@ -161,7 +165,7 @@ export const repaymentsAPI = {
 // ─── Collections API ─────────────────────────────────────
 export const collectionsAPI = {
   getCollections: (params?: Record<string, string>) =>
-    api.get("collections/", { params }),
+    api.get("collections/overdue/", { params }),
   logAction: (data: Record<string, unknown>) =>
     api.post("collections/actions/", data),
 };
@@ -169,9 +173,9 @@ export const collectionsAPI = {
 // ─── Fraud API ───────────────────────────────────────────
 export const fraudAPI = {
   getAlerts: (params?: Record<string, string>) =>
-    api.get("fraud/", { params }),
+    api.get("fraud/alerts/", { params }),
   resolveAlert: (id: number, data: Record<string, unknown>) =>
-    api.patch(`fraud/${id}/`, data),
+    api.patch(`fraud/alerts/${id}/close/`, data),
 };
 
 // ─── Reports API ─────────────────────────────────────────
@@ -179,7 +183,7 @@ export const reportsAPI = {
   getDashboard: () => api.get("reports/dashboard/"),
   getPortfolio: () => api.get("reports/portfolio/"),
   exportCSV: (reportType: string) =>
-    api.get(`reports/export/${reportType}/`, { responseType: "blob" }),
+    api.get("reports/export/", { params: { type: reportType, export_format: "csv" }, responseType: "blob" }),
 };
 
 // ─── Audit API ───────────────────────────────────────────

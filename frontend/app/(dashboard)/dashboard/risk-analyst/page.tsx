@@ -14,6 +14,13 @@ import Link from "next/link";
 export default function RiskAnalystDashboard() {
   const { data: loans, isLoading } = useSWR("/loans/applications/?status=AI_SCREENING", fetcher);
   const { data: riskData } = useSWR("/reports/risk-distribution/", fetcher);
+  const { data: agentPerf } = useSWR("/reports/agent-performance/", fetcher);
+  const { data: auditData } = useSWR("/audit/logs/", fetcher);
+
+  const aiStats = agentPerf?.agent_performance?.A3_recommendation || {
+    total_recommendations: 0, accepted: 0, overridden: 0, acceptance_rate_percent: 0
+  };
+  const recentActivities = Array.isArray(auditData?.results) ? auditData.results.slice(0, 5) : [];
 
   const pending = normalizeArrayData<Record<string, unknown>>(loans);
   const riskDistribution = (riskData?.risk_distribution ?? {}) as Record<string, unknown>;
@@ -107,11 +114,11 @@ export default function RiskAnalystDashboard() {
         </Card>
 
         {/* AI Override Stats */}
-        <Card title="AI Recommendation Stats" subtitle="Your review history">
+        <Card title="AI Recommendation Stats" subtitle="System review history">
           <div className="space-y-3">
             {[
-              { label: "Accepted AI Recommendation", count: 142, pct: 71 },
-              { label: "Overridden AI Recommendation", count: 58, pct: 29 },
+              { label: "Accepted AI Recommendation", count: aiStats.accepted, pct: aiStats.acceptance_rate_percent },
+              { label: "Overridden AI Recommendation", count: aiStats.overridden, pct: 100 - (aiStats.acceptance_rate_percent || 100) },
             ].map((s) => (
               <div key={s.label}>
                 <div className="flex justify-between mb-1"><span className="text-[13px] text-[var(--text-primary)]">{s.label}</span><span className="text-[13px] font-bold">{s.count}</span></div>
@@ -120,30 +127,27 @@ export default function RiskAnalystDashboard() {
             ))}
             <div className="mt-4 p-3 rounded-lg bg-purple-50 border border-purple-100">
               <p className="text-[12px] text-purple-700 font-medium">AI Accuracy Rate</p>
-              <p className="text-2xl font-bold text-purple-800 mt-0.5">87.4%</p>
-              <p className="text-[11px] text-purple-600 mt-0.5">Based on your 200 reviews</p>
+              <p className="text-2xl font-bold text-purple-800 mt-0.5">{aiStats.acceptance_rate_percent}%</p>
+              <p className="text-[11px] text-purple-600 mt-0.5">Based on {aiStats.total_recommendations} recommendations</p>
             </div>
           </div>
         </Card>
 
         {/* My Activity Today */}
-        <Card title="Today's Activity">
+        <Card title="Recent Activity">
           <div className="space-y-3">
-            {[
-              { time: "10:30 AM", action: "Reviewed LA0000234 — HIGH risk", type: "HIGH" },
-              { time: "11:15 AM", action: "Approved LA0000228 — LOW risk override", type: "APPROVED" },
-              { time: "12:00 PM", action: "Flagged LA0000241 — More info needed", type: "MORE_INFO_REQUIRED" },
-              { time: "02:45 PM", action: "Reviewed LA0000255 — MEDIUM risk", type: "MEDIUM" },
-            ].map((a, i) => (
+            {recentActivities.length > 0 ? recentActivities.map((a: Record<string, unknown>, i: number) => (
               <div key={i} className="flex items-start gap-3">
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 flex-shrink-0" />
                 <div>
-                  <p className="text-[13px] text-[var(--text-primary)]">{a.action}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{a.time}</p>
+                  <p className="text-[13px] text-[var(--text-primary)]">{String(a.description || "Action performed")}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(String(a.timestamp || new Date()))}</p>
                 </div>
-                <Badge status={a.type} className="ml-auto flex-shrink-0 text-[11px]" />
+                <Badge status={String(a.action_type || "INFO")} className="ml-auto flex-shrink-0 text-[11px]" />
               </div>
-            ))}
+            )) : (
+              <p className="text-[13px] text-gray-500 text-center py-4">No recent activity</p>
+            )}
           </div>
         </Card>
       </div>

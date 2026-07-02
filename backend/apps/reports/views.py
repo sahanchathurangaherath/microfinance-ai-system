@@ -5,7 +5,7 @@ import csv
 import json
 from django.http import HttpResponse
 
-from .services import DashboardService
+from .services import DashboardService, ExportService
 from .models import ReportSnapshot, KPIRecord
 from apps.users.permissions import IsAdmin, IsAdminOrBranchManager, IsRiskAnalyst, IsComplianceOfficer
 
@@ -146,33 +146,39 @@ class ExportReportView(APIView):
         'fraud': DashboardService.get_fraud_report,
     }
 
+    EXPORT_MAP = {
+        'portfolio': ExportService.get_portfolio,
+        'default_rate': ExportService.get_default_rate,
+        'arrears': ExportService.get_arrears_distribution,
+        'disbursement': ExportService.get_disbursement_summary,
+        'risk_distribution': ExportService.get_risk_distribution,
+        'agent_performance': ExportService.get_agent_performance,
+        'fraud': ExportService.get_fraud_report,
+    }
+
     def get(self, request):
         report_type = request.query_params.get('type', 'portfolio')
-        fmt = request.query_params.get('format', 'json')
+        fmt = request.query_params.get('export_format', 'json')
 
         if report_type not in self.REPORT_MAP:
             return Response({"error": f"Unknown report type: {report_type}"}, status=400)
 
-        data = self.REPORT_MAP[report_type]()
-
         if fmt == 'csv':
+            data = self.EXPORT_MAP[report_type]()
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = (
                 f'attachment; filename="{report_type}_report.csv"'
             )
             writer = csv.writer(response)
-            # Flatten top-level keys as headers
-            top_key = list(data.keys())[0]
-            content = data[top_key]
-            if isinstance(content, list) and content:
-                writer.writerow(content[0].keys())
-                for row in content:
+            if isinstance(data, list) and data:
+                writer.writerow(data[0].keys())
+                for row in data:
                     writer.writerow(row.values())
             else:
-                writer.writerow(['Key', 'Value'])
-                for k, v in content.items():
-                    writer.writerow([k, v])
+                writer.writerow(['No data available'])
             return response
+
+        data = self.REPORT_MAP[report_type]()
 
         # Save snapshot
         from datetime import date
