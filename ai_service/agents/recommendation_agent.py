@@ -11,6 +11,8 @@ from typing import Dict
 from decouple import config
 
 
+from services.agent_config import get_agent_config
+
 USE_LLM = config("A3_USE_LLM", default=False, cast=bool)
 
 
@@ -20,7 +22,19 @@ class RecommendationAgent(BaseAgent):
         super().__init__(agent_id="A3", agent_name="Recommendation Agent")
 
     def run(self, input_data: Dict) -> Dict:
-        if USE_LLM:
+        loan_id = input_data.get("loan_id")
+        cfg = get_agent_config("A3")
+        if cfg["is_paused"]:
+            return self.low_confidence_response(
+                input_reference=f"loan:{loan_id}",
+                reason=f"A3 is paused by admin: {cfg.get('pause_reason', 'No reason given')}"
+            )
+
+        use_llm = input_data.get("use_llm")
+        if use_llm is None:
+            use_llm = cfg["llm_enabled"]
+
+        if use_llm:
             return self._llm_recommend(input_data)
         else:
             return self._rule_recommend(input_data)

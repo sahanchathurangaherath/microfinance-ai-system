@@ -10,6 +10,8 @@ from typing import Dict
 from decouple import config
 
 
+from services.agent_config import get_agent_config
+
 USE_LLM = config("A1_USE_LLM", default=False, cast=bool)
 
 
@@ -23,7 +25,18 @@ class DataCollectionAgent(BaseAgent):
         client     = input_data.get("client_data", {})
         kyc        = input_data.get("kyc_data", {})
 
-        if USE_LLM:
+        cfg = get_agent_config("A1")
+        if cfg["is_paused"]:
+            return self.low_confidence_response(
+                input_reference=f"client:{client_id}",
+                reason=f"A1 is paused by admin: {cfg.get('pause_reason', 'No reason given')}"
+            )
+
+        use_llm = input_data.get("use_llm")
+        if use_llm is None:
+            use_llm = cfg["llm_enabled"]
+
+        if use_llm:
             return self._llm_validate(client_id, client, kyc)
         else:
             return self._rule_validate(client_id, client, kyc)

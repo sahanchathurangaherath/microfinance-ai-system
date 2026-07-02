@@ -9,7 +9,7 @@ from .base_agent import BaseAgent
 from typing import Dict, List
 from datetime import date
 from decouple import config
-
+from services.agent_config import get_agent_config
 
 USE_LLM = config("A4_USE_LLM", default=False, cast=bool)
 
@@ -27,6 +27,17 @@ class MonitoringAgent(BaseAgent):
         loans     = input_data.get("loans", [])
         today_str = input_data.get("today") or str(date.today())
         today     = date.fromisoformat(today_str)
+
+        cfg = get_agent_config("A4")
+        if cfg["is_paused"]:
+            return self.low_confidence_response(
+                input_reference=f"portfolio_scan:{today_str}",
+                reason=f"A4 is paused by admin: {cfg.get('pause_reason', 'No reason given')}"
+            )
+
+        use_llm = input_data.get("use_llm")
+        if use_llm is None:
+            use_llm = cfg["llm_enabled"]
 
         overdue_cases     = []
         early_overdue_count = 0
@@ -80,7 +91,7 @@ class MonitoringAgent(BaseAgent):
             "call_count": 0,
         }
         # LLM second pass — behavioural prediction per overdue loan
-        if USE_LLM and overdue_cases:
+        if use_llm and overdue_cases:
             overdue_cases, usage = self._llm_predict_patterns(overdue_cases, loans)
 
         total_loans      = len(loans)
@@ -111,7 +122,7 @@ class MonitoringAgent(BaseAgent):
                 "overdue_cases":            overdue_cases,
                 "overdue_loan_count":       overdue_count,
                 "portfolio_at_risk_percent": at_risk_rate,
-                "llm_prediction_applied":   USE_LLM,
+                "llm_prediction_applied":   use_llm,
                 "summary": {
                     "early_overdue_1_7_days": early_overdue_count,
                     "warning_8_30_days":      warning_count,

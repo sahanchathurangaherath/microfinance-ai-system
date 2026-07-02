@@ -12,7 +12,7 @@ All account actions require Compliance Officer authorization.
 from .base_agent import BaseAgent
 from typing import Dict, List
 from decouple import config
-
+from services.agent_config import get_agent_config
 
 USE_LLM = config("A5_USE_LLM", default=False, cast=bool)
 
@@ -29,6 +29,17 @@ class FraudDetectionAgent(BaseAgent):
         """
         client_id = input_data.get("client_id")
         loan_id   = input_data.get("loan_id")
+
+        cfg = get_agent_config("A5")
+        if cfg["is_paused"]:
+            return self.low_confidence_response(
+                input_reference=f"client:{client_id}|loan:{loan_id}",
+                reason=f"A5 is paused by admin: {cfg.get('pause_reason', 'No reason given')}"
+            )
+
+        use_llm = input_data.get("use_llm")
+        if use_llm is None:
+            use_llm = cfg["llm_enabled"]
 
         #  1: RULE-BASED FIRST PASS (always runs) 
         signals, score = self._rule_signals(input_data)
@@ -65,7 +76,7 @@ class FraudDetectionAgent(BaseAgent):
 
         # STEP 2: LLM DEBATE SECOND-PASS
         usage = {}
-        if USE_LLM and signals:
+        if use_llm and signals:
             rule_output, rationale, usage = self._llm_debate(
                 rule_output, input_data, signals, rationale
             )

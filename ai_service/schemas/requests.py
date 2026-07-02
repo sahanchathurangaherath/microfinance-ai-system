@@ -1,5 +1,4 @@
 from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -7,6 +6,7 @@ class A1ValidateRequest(BaseModel):
     client_id: int
     client_data: Dict[str, Any]
     kyc_data: Dict[str, Any]
+    use_llm: Optional[bool] = None
 
 
 class A2RiskRequest(BaseModel):
@@ -14,6 +14,7 @@ class A2RiskRequest(BaseModel):
     client_data: Dict[str, Any]
     loan_data: Dict[str, Any]
     repayment_history: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    use_llm: Optional[bool] = None
 
 
 class A3RecommendationRequest(BaseModel):
@@ -28,6 +29,7 @@ class A3RecommendationRequest(BaseModel):
     debt_to_income_ratio: float = 0
     has_repayment_history: bool = False
     ai_rationale: str = ""
+    use_llm: Optional[bool] = None
 
 
 class InstallmentData(BaseModel):
@@ -48,6 +50,7 @@ class LoanRepaymentData(BaseModel):
 class A4ScanRequest(BaseModel):
     loans: List[LoanRepaymentData]
     today: Optional[str] = None
+    use_llm: Optional[bool] = None
 
 
 class A5FraudRequest(BaseModel):
@@ -58,9 +61,11 @@ class A5FraudRequest(BaseModel):
     application_data: Dict[str, Any] = Field(default_factory=dict)
     payment_data: Dict[str, Any] = Field(default_factory=dict)
     kyc_data: Dict[str, Any] = Field(default_factory=dict)
+    use_llm: Optional[bool] = None
 
 
 class A6DraftRequest(BaseModel):
     comm_type: str
     context: Dict[str, Any]
     channels: List[str] = Field(default_factory=lambda: ["SMS", "EMAIL"])
+    use_llm: Optional[bool] = None
