@@ -120,6 +120,14 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
             if d.get("channel") in channels
         ]
 
+        confidence = float(output.get("confidence", 0.85))
+        from services.guardrails import confidence_requires_manual_review
+        if confidence_requires_manual_review(confidence):
+            return self.low_confidence_response(
+                input_reference=f"comm:{comm_type}",
+                reason=f"LLM confidence {round(confidence, 2)} below threshold. Manual drafting required."
+            )
+
         return self.build_response(
             output={
                 "comm_type":     comm_type,
@@ -128,7 +136,7 @@ Only include draft objects for channels in: {json.dumps(channels)}"""
                 "language_used": output.get("language_used", language),
                 "tone_applied":  output.get("tone_applied", ""),
             },
-            confidence=float(output.get("confidence", 0.85)),
+            confidence=confidence,
             rationale=(
                 f"A6 drafted {len(drafts)} personalized message(s) for '{comm_type}' "
                 f"in {lang_name} ({tone} tone). "

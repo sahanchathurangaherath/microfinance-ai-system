@@ -97,6 +97,13 @@ class MonitoringAgent(BaseAgent):
         # Calculate confidence dynamically based on data quality
         confidence = self._calculate_confidence(total_loans, len(overdue_cases))
 
+        from services.guardrails import confidence_requires_manual_review
+        if confidence_requires_manual_review(confidence):
+            return self.low_confidence_response(
+                input_reference=f"portfolio_scan:{today_str}",
+                reason=f"LLM confidence {round(confidence, 2)} below threshold. Manual portfolio review required."
+            )
+
         return self.build_response(
             output={
                 "scan_date":                today_str,

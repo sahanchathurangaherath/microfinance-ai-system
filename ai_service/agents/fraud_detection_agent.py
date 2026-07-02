@@ -70,9 +70,17 @@ class FraudDetectionAgent(BaseAgent):
                 rule_output, input_data, signals, rationale
             )
 
+        final_confidence = rule_output.get("llm_confidence") or confidence
+        from services.guardrails import confidence_requires_manual_review
+        if confidence_requires_manual_review(final_confidence):
+            return self.low_confidence_response(
+                input_reference=f"client:{client_id}|loan:{loan_id}",
+                reason=f"LLM confidence {round(final_confidence, 2)} below threshold. Manual fraud review required."
+            )
+
         return self.build_response(
             output=rule_output,
-            confidence=rule_output.get("llm_confidence") or confidence,
+            confidence=final_confidence,
             rationale=rationale,
             input_reference=f"client:{client_id}|loan:{loan_id}",
             usage_metadata=usage
@@ -160,8 +168,20 @@ Return ONLY this JSON:
         final_score = (rule_output["fraud_risk_score"] * 0.5) + (llm_score * 0.5)
         final_score = min(100.0, max(0.0, final_score))  # Clamp to [0, 100]
 
+        rule_severity = rule_output["severity"]
+        final_severity = self._severity(final_score)
+
+        # Enforce that LLM layer never lowers severity
+        severity_hierarchy = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+        if severity_hierarchy[final_severity] < severity_hierarchy[rule_severity]:
+            final_severity = rule_severity
+            severity_min_scores = {"LOW": 0.0, "MEDIUM": 25.0, "HIGH": 50.0, "CRITICAL": 70.0}
+            min_allowed_score = severity_min_scores[rule_severity]
+            if final_score < min_allowed_score:
+                final_score = min_allowed_score
+
         rule_output["fraud_risk_score"]     = round(final_score, 2)
-        rule_output["severity"]             = self._severity(final_score)
+        rule_output["severity"]             = final_severity
         rule_output["is_suspicious"]        = final_score >= 25
         rule_output["prosecutor_findings"]  = output.get("prosecutor_findings", [])
         rule_output["defense_findings"]     = output.get("defense_findings", [])
