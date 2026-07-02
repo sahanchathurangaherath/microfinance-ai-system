@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +42,15 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const searchParams = useSearchParams();
+  const shouldOpenCreate = searchParams?.get("new") === "true";
+
+  useEffect(() => {
+    if (shouldOpenCreate) {
+      setIsCreateOpen(true);
+    }
+  }, [shouldOpenCreate]);
 
   const roleOptions = Object.entries(ROLE_LABELS).map(([key, label]) => ({ value: key, label }));
 

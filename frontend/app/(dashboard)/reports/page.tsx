@@ -13,14 +13,32 @@ import { useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { reportsAPI, fetcher } from "@/lib/api";
 import useSWR from "swr";
+import { usePermissions } from "@/lib/permissions";
+import { ShieldAlert } from "lucide-react";
 
 export default function ReportsPage() {
+  const { can } = usePermissions();
   const toast = useToast();
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isViewing, setIsViewing] = useState<string | null>(null);
   const [viewData, setViewData] = useState<{ id: string; title: string; data: any } | null>(null);
-  const { data: dashboard, isLoading } = useSWR("/reports/dashboard/", fetcher);
-  const { data: disbursementsData } = useSWR("/reports/disbursements/", fetcher);
+  
+  const { data: dashboard, isLoading } = useSWR(can("reports:read") ? "/reports/dashboard/" : null, fetcher);
+  const { data: disbursementsData } = useSWR(can("reports:read") ? "/reports/disbursements/" : null, fetcher);
+
+  if (!can("reports:read")) {
+    return (
+      <Card className="flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
+        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mb-3">
+          <ShieldAlert className="h-6 w-6 text-red-600" />
+        </div>
+        <h3 className="text-lg font-bold text-[var(--text-primary)]">Access Denied</h3>
+        <p className="text-[var(--text-muted)] text-sm mt-2">
+          You do not have permission to view Reports & Analytics.
+        </p>
+      </Card>
+    );
+  }
 
   const totalAUM = dashboard?.loans?.total_outstanding || dashboard?.portfolio?.total_outstanding || 0;
   const activeClients = dashboard?.clients?.active || "N/A";

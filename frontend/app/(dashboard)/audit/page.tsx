@@ -1,19 +1,35 @@
 "use client";
 
 import useSWR from "swr";
-import { Shield, Search, Calendar, User, Filter } from "lucide-react";
+import { Shield, Search, Calendar, User, Filter, ShieldAlert } from "lucide-react";
 import { fetcher } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
 import { useState } from "react";
+import { usePermissions } from "@/lib/permissions";
 
 export default function AuditPage() {
+  const { can } = usePermissions();
   const [actionFilter, setActionFilter] = useState("");
   const params = actionFilter ? `?action_type=${actionFilter}` : "";
-  const { data, error, isLoading, mutate } = useSWR(`/audit/logs/${params}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(can("audit:read") ? `/audit/logs/${params}` : null, fetcher);
   const logs = data?.results || data || [];
+
+  if (!can("audit:read")) {
+    return (
+      <Card className="flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
+        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mb-3">
+          <ShieldAlert className="h-6 w-6 text-red-600" />
+        </div>
+        <h3 className="text-lg font-bold text-[var(--text-primary)]">Access Denied</h3>
+        <p className="text-[var(--text-muted)] text-sm mt-2">
+          You do not have permission to view the Audit Trail.
+        </p>
+      </Card>
+    );
+  }
 
   const columns = [
     { id: "user", header: "User", cell: (r: Record<string,unknown>) => (

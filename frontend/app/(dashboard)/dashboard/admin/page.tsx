@@ -88,7 +88,7 @@ export default function AdminDashboard() {
         <div>
           <p className="text-[var(--text-muted)] text-sm mt-0.5">Full system overview and management</p>
         </div>
-        <Link href="/users/new">
+        <Link href="/users?new=true">
           <Button icon={<Plus className="h-4 w-4" />}>Add Staff</Button>
         </Link>
       </div>

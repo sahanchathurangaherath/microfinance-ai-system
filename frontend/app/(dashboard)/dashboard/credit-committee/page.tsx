@@ -12,7 +12,7 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function CreditCommitteeDashboard() {
-  const { data: approvals, isLoading } = useSWR("/approvals/?status=PENDING_COMMITTEE", fetcher);
+  const { data: approvals, isLoading } = useSWR("/approvals/pending/committee/", fetcher);
   const pending = normalizeArrayData<Record<string, unknown>>(approvals);
 
   const getVoteCount = (value: unknown, fallback: number) => {

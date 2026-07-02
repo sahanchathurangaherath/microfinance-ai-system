@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { AlertTriangle, Search, Filter, Shield, Eye, CheckCircle } from "lucide-react";
+import { AlertTriangle, Search, Filter, Shield, Eye, CheckCircle, ShieldAlert } from "lucide-react";
 import { fetcher } from "@/lib/api";
 import { formatDate, formatRelativeTime } from "@/lib/utils";
 import Card from "@/components/ui/Card";
@@ -12,14 +12,30 @@ import StatCard from "@/components/ui/StatCard";
 import { useState } from "react";
 import api from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
+import { usePermissions } from "@/lib/permissions";
 
 export default function FraudPage() {
+  const { can } = usePermissions();
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState("");
   const [isTriggering, setIsTriggering] = useState(false);
   const params = statusFilter ? `?is_resolved=${statusFilter}` : "";
-  const { data, error, isLoading, mutate } = useSWR(`/fraud/alerts/${params}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(can("fraud:read") ? `/fraud/alerts/${params}` : null, fetcher);
   const alerts = data?.results || data || [];
+
+  if (!can("fraud:read")) {
+    return (
+      <Card className="flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
+        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mb-3">
+          <ShieldAlert className="h-6 w-6 text-red-600" />
+        </div>
+        <h3 className="text-lg font-bold text-[var(--text-primary)]">Access Denied</h3>
+        <p className="text-[var(--text-muted)] text-sm mt-2">
+          You do not have permission to view Fraud Alerts.
+        </p>
+      </Card>
+    );
+  }
 
   const columns = [
     { id: "type", header: "Flag Type", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{String(r.alert_type || "UNKNOWN").replace(/_/g, " ")}</span> },

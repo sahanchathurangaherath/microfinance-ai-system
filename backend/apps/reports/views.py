@@ -134,7 +134,7 @@ class ExportReportView(APIView):
     Export any report as CSV.
     Usage: GET /api/reports/export/?type=portfolio
     """
-    permission_classes = [IsAdminOrBranchManager]
+    permission_classes = [IsAuthenticated]
 
     REPORT_MAP = {
         'portfolio': DashboardService.get_portfolio,
@@ -159,6 +159,25 @@ class ExportReportView(APIView):
     def get(self, request):
         report_type = request.query_params.get('type', 'portfolio')
         fmt = request.query_params.get('export_format', 'json')
+
+        role = request.user.role
+
+        # Enforce role-based scoping on report types
+        role_allowed_reports = {
+            'admin': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'fraud'],
+            'branch_manager': ['portfolio', 'default_rate', 'arrears', 'disbursement'],
+            'risk_analyst': ['risk_distribution'],
+            'collections_officer': ['arrears'],
+            'finance_staff': ['disbursement'],
+            'compliance_officer': ['fraud'],
+        }
+
+        allowed_reports = role_allowed_reports.get(role, [])
+        if report_type not in allowed_reports:
+            return Response(
+                {"error": f"You do not have permission to view or export the '{report_type}' report."},
+                status=403
+            )
 
         if report_type not in self.REPORT_MAP:
             return Response({"error": f"Unknown report type: {report_type}"}, status=400)
