@@ -121,7 +121,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 AI_SERVICE_URL = config('AI_SERVICE_URL', default='http://localhost:8001')
-AI_SERVICE_API_KEY = config('AI_SERVICE_API_KEY', default='')
+AI_SERVICE_API_KEY = config('AI_SERVICE_API_KEY', default='internal-ai-key-change-this')
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

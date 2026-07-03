@@ -290,9 +290,9 @@ class AuditAPIViewsTests(APITestCase):
         )
 
     def test_agent_config_list_permissions(self):
-        # 1. Without Auth or API Key -> 403
+        # 1. Without Auth or API Key -> 401
         response = self.client.get('/api/audit/agent-config/')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # 2. With Admin Auth -> 200
         self.client.force_authenticate(user=self.admin)

@@ -123,6 +123,7 @@ class AIHealthCheckView(APIView):
             status_obj.status = 'ONLINE'
             status_obj.consecutive_failures = 0
             status_obj.last_online = timezone.now()
+            status_obj.manual_mode_active = False
             status_obj.save()
             if was_offline:
                 from .ai_failure_handler import handle_ai_recovery

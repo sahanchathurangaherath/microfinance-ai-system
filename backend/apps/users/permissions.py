@@ -13,7 +13,7 @@ class IsAdminOrBranchManager(BasePermission):
     def has_permission(self, request, view):
         
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return request.user.is_authenticated and request.user.role in ['admin', 'branch_manager', 'collections_officer', 'finance_staff', 'risk_analyst']
+            return request.user.is_authenticated and request.user.role in ['admin', 'branch_manager', 'collections_officer', 'finance_staff', 'risk_analyst', 'compliance_officer']
         return request.user.is_authenticated and request.user.role in ['admin', 'branch_manager']
 
 

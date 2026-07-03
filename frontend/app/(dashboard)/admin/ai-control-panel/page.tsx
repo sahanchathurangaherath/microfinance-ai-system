@@ -34,7 +34,7 @@ const AGENT_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function AIControlPanelPage() {
-  const { can } = usePermissions();
+  const { can, isAdmin, isBranchManager, isRiskAnalyst, isComplianceOfficer } = usePermissions();
   const toast = useToast();
   
   const [activeTab, setActiveTab] = useState<"agents" | "incidents" | "reviews" | "audit">("agents");
@@ -232,6 +232,7 @@ export default function AIControlPanelPage() {
             <Button
               variant={manualModeActive ? "primary" : "danger"}
               size="sm"
+              disabled={!isAdmin && !isBranchManager}
               icon={manualModeActive ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
               onClick={handleToggleManualMode}
             >
@@ -357,10 +358,11 @@ export default function AIControlPanelPage() {
                         Deterministic local rules fallback when disabled.
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer mt-1">
+                    <label className={`relative inline-flex items-center mt-1 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
                       <input
                         type="checkbox"
                         checked={llmEnabled}
+                        disabled={!isAdmin}
                         onChange={(e) => setLlmEnabled(e.target.checked)}
                         className="sr-only peer"
                       />
@@ -378,10 +380,11 @@ export default function AIControlPanelPage() {
                         Bypass this agent, route to fallback, and queue reviews.
                       </p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer mt-1">
+                    <label className={`relative inline-flex items-center mt-1 ${isAdmin ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
                       <input
                         type="checkbox"
                         checked={isPaused}
+                        disabled={!isAdmin}
                         onChange={(e) => setIsPaused(e.target.checked)}
                         className="sr-only peer"
                       />
@@ -399,6 +402,7 @@ export default function AIControlPanelPage() {
                     </label>
                     <textarea
                       required
+                      disabled={!isAdmin}
                       placeholder="Explain why this agent is being paused. This will be shown to users and logged in the audits."
                       value={pauseReason}
                       onChange={(e) => setPauseReason(e.target.value)}
@@ -430,8 +434,9 @@ export default function AIControlPanelPage() {
                         max="0.95"
                         step="0.05"
                         value={confidenceThreshold}
+                        disabled={!isAdmin}
                         onChange={(e) => setConfidenceThreshold(parseFloat(e.target.value))}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-none"
+                        className={`w-full h-1.5 bg-gray-200 rounded-lg appearance-none accent-blue-600 focus:outline-none ${isAdmin ? "cursor-pointer" : "cursor-not-allowed"}`}
                       />
                     </div>
                   </div>
@@ -445,6 +450,7 @@ export default function AIControlPanelPage() {
                     </p>
                     <select
                       value={modelOverride}
+                      disabled={!isAdmin}
                       onChange={(e) => setModelOverride(e.target.value)}
                       className="w-full text-[13px] p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
                     >
@@ -467,6 +473,7 @@ export default function AIControlPanelPage() {
                       type="number"
                       placeholder="Unlimited"
                       value={dailyTokenBudget}
+                      disabled={!isAdmin}
                       onChange={(e) => setDailyTokenBudget(e.target.value === "" ? "" : Number(e.target.value))}
                       className="w-full text-[13px] p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
                     />
@@ -484,6 +491,7 @@ export default function AIControlPanelPage() {
                       required
                       placeholder="e.g. Scaling up testing / Emergency pause"
                       value={changeReason}
+                      disabled={!isAdmin}
                       onChange={(e) => setChangeReason(e.target.value)}
                       className="w-full text-[13px] p-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 bg-white"
                     />
@@ -495,6 +503,7 @@ export default function AIControlPanelPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={!isAdmin}
                     onClick={() => mutateConfigs()}
                   >
                     Reset
@@ -503,7 +512,7 @@ export default function AIControlPanelPage() {
                     variant="primary"
                     size="sm"
                     loading={savingAgentId === selectedAgent}
-                    disabled={isPaused && !pauseReason}
+                    disabled={!isAdmin || (isPaused && !pauseReason)}
                     onClick={handleSaveConfig}
                   >
                     Apply Config Settings
@@ -590,13 +599,14 @@ export default function AIControlPanelPage() {
                   id: "actions",
                   header: "Actions Override",
                   cell: (r: any) => {
-                    const isRetryable = r.status === "PENDING" || r.status === "AI_FAILED";
+                    const isRetryable = r.status === "PENDING" || r.status === "IN_PROGRESS" || r.status === "AI_RETRY_QUEUED";
                     return (
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
                           variant="primary"
                           className="shadow-sm shadow-blue-500/10 hover:shadow-md"
+                          disabled={!isAdmin && !isRiskAnalyst && !isComplianceOfficer}
                           onClick={() => handleManualDecision(r.id, "APPROVED")}
                         >
                           Approve
@@ -605,6 +615,7 @@ export default function AIControlPanelPage() {
                           size="sm"
                           variant="outline"
                           className="border-red-200 text-red-600 hover:bg-red-50 shadow-sm"
+                          disabled={!isAdmin && !isRiskAnalyst && !isComplianceOfficer}
                           onClick={() => handleManualDecision(r.id, "REJECTED")}
                         >
                           Reject
@@ -614,6 +625,7 @@ export default function AIControlPanelPage() {
                             size="sm"
                             variant="ghost"
                             className="text-gray-500 hover:bg-gray-100"
+                            disabled={!isAdmin && !isComplianceOfficer}
                             icon={<RefreshCw className="h-3 w-3" />}
                             onClick={() => handleRetryReview(r.id)}
                           >
@@ -657,6 +669,7 @@ export default function AIControlPanelPage() {
                         variant="outline"
                         icon={<CheckCircle className="h-3.5 w-3.5" />}
                         className="hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 border-gray-200"
+                        disabled={!isAdmin && !isComplianceOfficer && !isBranchManager}
                         onClick={() => handleResolveIncident(r.id)}
                       >
                         Resolve Alert

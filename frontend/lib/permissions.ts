@@ -21,6 +21,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "reports:read",
     "notifications:read",
     "profile:read",
+    "audit:read",
   ],
   branch_manager: [
     "clients:read", "clients:write",
@@ -31,6 +32,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "reports:read",
     "notifications:read",
     "profile:read",
+    "audit:read",
   ],
   credit_committee: [
     "clients:read",
