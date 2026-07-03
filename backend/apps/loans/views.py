@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Local Apps
 from apps.audit.utils import log_agent_action
 from apps.users.permissions import (
-    IsAdmin, IsBranchManager, IsFinanceStaff, IsLoanOfficer, IsRiskAnalyst
+    IsAdmin, IsBranchManager, IsFinanceStaff, IsLoanOfficer, IsRiskAnalyst, IsCreditCommittee
 )
 
 # Local Models
@@ -526,7 +526,7 @@ class OfficerFeedbackView(APIView):
     Officer submits feedback on whether the AI recommendation was helpful.
     Also used to accept or override the recommendation.
     """
-    permission_classes = [IsRiskAnalyst]
+    permission_classes = [IsRiskAnalyst | IsCreditCommittee]
 
     def post(self, request, pk):
         try:

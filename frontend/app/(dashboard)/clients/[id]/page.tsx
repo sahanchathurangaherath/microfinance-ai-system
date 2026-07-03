@@ -78,11 +78,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   const handleVerifyClient = async () => {
     try {
-      await api.patch(`/clients/${id}/`, { status: "VERIFIED" });
-      toast.success("Client marked as Verified");
+      await api.post(`/clients/${id}/kyc/submit/`, {});
+      toast.success("AI KYC Validation started");
       mutateClient();
     } catch (error) {
-      toast.error("Failed to verify client");
+      toast.error("Failed to start AI KYC Validation");
     }
   };
 
@@ -238,7 +238,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             action={
               <div className="flex gap-2">
                 {can("clients:write") && client?.status !== "VERIFIED" && (
-                  <Button size="sm" variant="secondary" onClick={handleVerifyClient}>Verify Client</Button>
+                  <Button size="sm" variant="secondary" onClick={handleVerifyClient}>Run AI KYC Validation</Button>
                 )}
                 {can("clients:write") && (
                   <Button size="sm" variant="outline" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setIsUploadModalOpen(true)}>Upload Document</Button>

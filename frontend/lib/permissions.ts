@@ -9,7 +9,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "clients:read", "clients:write",
     "loans:read", "loans:write",
     "repayments:read",
-    "notifications:read",
+    "notifications:read", "notifications:write",
     "profile:read",
     "reports:read",
   ],
@@ -47,7 +47,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "repayments:read",
     "collections:read", "collections:write",
     "reports:read",
-    "notifications:read",
+    "notifications:read", "notifications:write",
     "profile:read",
   ],
   compliance_officer: [

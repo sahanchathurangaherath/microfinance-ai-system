@@ -20,7 +20,7 @@ class DraftNotificationView(APIView):
     Calls A6 to draft a message. Creates a NotificationQueue entry for officer review.
     Does NOT send anything.
     """
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
 
     def post(self, request):
         comm_type = request.data.get("comm_type")
@@ -93,7 +93,7 @@ class DraftNotificationView(APIView):
 class PendingApprovalView(generics.ListAPIView):
     """Officer sees all notifications pending their approval."""
     serializer_class = NotificationQueueSerializer
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
 
     def get_queryset(self):
         return NotificationQueue.objects.filter(status='PENDING_APPROVAL')
@@ -101,7 +101,7 @@ class PendingApprovalView(generics.ListAPIView):
 
 class ApproveNotificationView(APIView):
     """Officer approves a draft message — marks it ready to send."""
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
 
     def post(self, request, notif_id):
         try:
@@ -128,7 +128,7 @@ class ApproveNotificationView(APIView):
 
 class RejectNotificationView(APIView):
     """Officer rejects a draft message with a reason."""
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
 
     def post(self, request, notif_id):
         try:
@@ -149,7 +149,7 @@ class SendNotificationView(APIView):
     Sends an APPROVED notification via SMS or Email.
   
     """
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
 
     def post(self, request, notif_id):
         try:
@@ -241,7 +241,7 @@ class SendNotificationView(APIView):
 
 class NotificationLogListView(generics.ListAPIView):
     serializer_class = NotificationLogSerializer
-    permission_classes = [IsLoanOfficer]
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
 
     def get_queryset(self):
         return NotificationLog.objects.all().select_related('notification')

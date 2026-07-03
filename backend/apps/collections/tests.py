@@ -1,5 +1,5 @@
 from django.test import TestCase
-from .models import Collection
+from .models import DelinquencyCase
 
 
 class CollectionModelTest(TestCase):

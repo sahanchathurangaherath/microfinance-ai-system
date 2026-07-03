@@ -384,7 +384,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <Button className="w-full" variant="primary" icon={<CheckCircle className="h-4 w-4" />} onClick={handleDisburse} loading={isActioning}>Process Disbursement</Button>
               )}
 
-              {(role === "loan_officer" || role === "admin") && (
+              {(role === "loan_officer" || role === "admin" || role === "collections_officer") && (
                 <Button className="w-full mt-2" variant="outline" onClick={handleTriggerA6} loading={isActioning}>Draft Message (A6)</Button>
               )}
 
