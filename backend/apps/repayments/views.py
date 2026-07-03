@@ -263,4 +263,38 @@ class TriggerA4ScanView(APIView):
             except RepaymentInstallment.DoesNotExist:
                 continue
 
+        # Auto-create or update delinquency cases
+        if overdue_cases:
+            from apps.collections.models import DelinquencyCase
+            for case_data in overdue_cases:
+                try:
+                    loan_id = case_data.get("loan_id")
+                    loan = Loan.objects.get(pk=loan_id)
+                except Loan.DoesNotExist:
+                    continue
+
+                # Calculate total overdue amount from overdue installments
+                overdue_insts = RepaymentInstallment.objects.filter(
+                    schedule__loan=loan, status='OVERDUE'
+                )
+                total_overdue = sum(
+                    i.amount_due - i.amount_paid for i in overdue_insts
+                )
+
+                delinq_case, was_created = DelinquencyCase.objects.update_or_create(
+                    loan=loan,
+                    defaults={
+                        "bucket": case_data.get("bucket", "BUCKET_1_7"),
+                        "days_overdue": case_data.get("days_overdue", 0),
+                        "total_overdue_amount": total_overdue,
+                        "overdue_installments_count": overdue_insts.count(),
+                        "predicted_default_probability": case_data.get("predicted_default_probability"),
+                        "behavioral_pattern_label": case_data.get("behavioral_pattern_label", ""),
+                        "llm_recommended_action": case_data.get("llm_recommended_action", ""),
+                    }
+                )
+                if was_created:
+                    delinq_case.status = "OPEN"
+                    delinq_case.save()
+
         return Response(ai_result)
