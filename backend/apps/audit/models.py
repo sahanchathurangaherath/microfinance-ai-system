@@ -315,6 +315,15 @@ class AgentConfiguration(models.Model):
     pause_reason = models.TextField(blank=True)
     confidence_threshold = models.FloatField(default=0.65)
     model_override = models.CharField(max_length=50, blank=True)  # force specific LLM for this agent
+    fallback_behavior = models.CharField(
+        max_length=30,
+        choices=[
+            ('RULE_FALLBACK', 'Local Rule Engine Fallback'),
+            ('MANUAL_REVIEW', 'Queue for Manual Review'),
+            ('REJECT', 'Hard Fail')
+        ],
+        default='RULE_FALLBACK'
+    )
     daily_token_budget = models.IntegerField(null=True, blank=True)   # null = unlimited
     last_changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     last_changed_at = models.DateTimeField(auto_now=True)

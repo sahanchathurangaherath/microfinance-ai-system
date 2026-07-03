@@ -196,6 +196,30 @@ export const auditAPI = {
     api.get("audit/login-attempts/", { params }),
   getPermissionChanges: (params?: Record<string, string>) =>
     api.get("audit/permission-changes/", { params }),
+  getAgentConfigs: () =>
+    api.get("audit/agent-config/"),
+  updateAgentConfig: (agentId: string, data: Record<string, any>) =>
+    api.patch(`audit/agent-config/${agentId}/`, data),
+  getAgentPerformance: (agentId: string, params?: Record<string, any>) =>
+    api.get(`audit/agent-performance/${agentId}/`, { params }),
+  getAgentConfigChangeLogs: () =>
+    api.get("audit/agent-config-logs/"),
+  getAIHealth: () =>
+    api.get("audit/ai/health/"),
+  enableManualMode: () =>
+    api.post("audit/system/manual-mode/enable/"),
+  disableManualMode: () =>
+    api.post("audit/system/manual-mode/disable/"),
+  getIncidents: () =>
+    api.get("audit/system/incidents/"),
+  resolveIncident: (id: number) =>
+    api.post(`audit/system/incidents/${id}/resolve/`),
+  getManualReviewQueue: () =>
+    api.get("audit/system/manual-review/"),
+  submitManualReview: (caseId: number, data: Record<string, any>) =>
+    api.post(`audit/system/manual-review/${caseId}/submit/`, data),
+  retryAIRequest: (caseId: number) =>
+    api.post(`audit/system/manual-review/${caseId}/retry/`),
 };
 
 // ─── Notifications API ───────────────────────────────────

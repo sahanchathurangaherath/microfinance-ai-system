@@ -202,7 +202,8 @@ class DisableManualModeView(APIView):
 
 class SystemIncidentListView(generics.ListAPIView):
     serializer_class = SystemIncidentSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [IsComplianceOfficer]
+    pagination_class = None
 
     def get_queryset(self):
         qs = SystemIncident.objects.all()
@@ -213,7 +214,7 @@ class SystemIncidentListView(generics.ListAPIView):
 
 
 class ResolveIncidentView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsComplianceOfficer]
 
     def post(self, request, incident_id):
         try:
@@ -233,7 +234,8 @@ class ResolveIncidentView(APIView):
 class ManualReviewQueueView(generics.ListAPIView):
     """Shows all pending manual review cases when AI is down."""
     serializer_class = ManualReviewCaseSerializer
-    permission_classes = [IsAdminOrBranchManager]
+    permission_classes = [IsComplianceOfficer | IsRiskAnalyst]
+    pagination_class = None
 
     def get_queryset(self):
         return ManualReviewCase.objects.filter(
@@ -246,7 +248,7 @@ class SubmitManualReviewView(APIView):
     Officer submits a manual risk score and decision when AI is unavailable.
     This substitutes the A2 output and moves the application forward.
     """
-    permission_classes = [IsRiskAnalyst]
+    permission_classes = [IsRiskAnalyst | IsComplianceOfficer]
 
     def post(self, request, case_id):
         try:
@@ -258,13 +260,16 @@ class SubmitManualReviewView(APIView):
         manual_decision = request.data.get("manual_decision")
         manual_notes = request.data.get("manual_notes", "")
 
-        if manual_score is None or not manual_decision:
+        if not manual_decision:
             return Response(
-                {"error": "manual_score and manual_decision are required."},
+                {"error": "manual_decision is required."},
                 status=400
             )
 
-        case.manual_score = float(manual_score)
+        if manual_score is not None:
+            case.manual_score = float(manual_score)
+        else:
+            case.manual_score = None
         case.manual_decision = manual_decision
         case.manual_notes = manual_notes
         case.status = 'COMPLETED'
@@ -303,7 +308,7 @@ class RetryAIRequestView(APIView):
     After AI recovery, retry a previously failed agent call.
     Looks up the manual review case and re-triggers the correct agent.
     """
-    permission_classes = [IsAdminOrBranchManager]
+    permission_classes = [IsComplianceOfficer]
 
     def post(self, request, case_id):
         try:
@@ -345,11 +350,18 @@ class RetryAIRequestView(APIView):
 
 class HasInternalAPIKey(BasePermission):
     """
-    Simple check to verify the internal API Key used by FastAPI.
+    Simple check to verify the internal API Key used by FastAPI,
+    or allow access to authenticated admin, compliance_officer, and branch_manager roles.
     """
     def has_permission(self, request, view):
         api_key = request.META.get('HTTP_X_API_KEY')
-        return api_key == settings.AI_SERVICE_API_KEY
+        if api_key == settings.AI_SERVICE_API_KEY:
+            return True
+        return bool(
+            request.user and
+            request.user.is_authenticated and
+            request.user.role in ['admin', 'compliance_officer', 'branch_manager']
+        )
 
 
 class AgentConfigListView(APIView):
@@ -370,7 +382,8 @@ class AgentConfigUpdateView(APIView):
         
         fields_to_update = [
             'llm_enabled', 'is_paused', 'pause_reason',
-            'confidence_threshold', 'model_override', 'daily_token_budget'
+            'confidence_threshold', 'model_override', 'daily_token_budget',
+            'fallback_behavior'
         ]
         
         for field in fields_to_update:
@@ -449,7 +462,8 @@ class AgentPerformanceView(APIView):
 class AgentConfigChangeLogListView(generics.ListAPIView):
     """Allows administrators to view configuration audit logs."""
     serializer_class = AgentConfigChangeLogSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrBranchManager]
+    permission_classes = [IsAuthenticated, IsComplianceOfficer]
+    pagination_class = None
 
     def get_queryset(self):
         return AgentConfigChangeLog.objects.all()

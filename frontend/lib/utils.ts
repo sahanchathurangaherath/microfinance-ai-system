@@ -77,9 +77,20 @@ export function getStatusColor(status: string): string {
     WRITTEN_OFF: "text-red-700",
     HIGH: "text-red-700",
     CRITICAL: "text-red-700",
+    HARD: "text-red-700",
+    SOFT: "text-blue-700",
     CANCELLED: "text-gray-700",
     DRAFT: "text-gray-700",
     RESCHEDULED: "text-indigo-700",
+    PAUSED: "text-red-700",
+    AI_HYBRID: "text-blue-700",
+    RULES_ONLY: "text-indigo-700",
+    ONLINE: "text-emerald-700",
+    DEGRADED: "text-amber-700",
+    OFFLINE: "text-red-700",
+    MANUAL_MODE_ACTIVE: "text-purple-700",
+    OPEN: "text-amber-700",
+    RESOLVED: "text-emerald-700",
   };
   return map[s] || "text-gray-700";
 }
@@ -113,9 +124,20 @@ export function getStatusBgColor(status: string): string {
     WRITTEN_OFF: "bg-red-50 border-red-200",
     HIGH: "bg-red-50 border-red-200",
     CRITICAL: "bg-red-50 border-red-200",
+    HARD: "bg-red-50 border-red-200",
+    SOFT: "bg-blue-50 border-blue-200",
     CANCELLED: "bg-gray-50 border-gray-200",
     DRAFT: "bg-gray-50 border-gray-200",
     RESCHEDULED: "bg-indigo-50 border-indigo-200",
+    PAUSED: "bg-red-50 border-red-200",
+    AI_HYBRID: "bg-blue-50 border-blue-200",
+    RULES_ONLY: "bg-indigo-50 border-indigo-200",
+    ONLINE: "bg-emerald-50 border-emerald-200",
+    DEGRADED: "bg-amber-50 border-amber-200",
+    OFFLINE: "bg-red-50 border-red-200",
+    MANUAL_MODE_ACTIVE: "bg-purple-50 border-purple-200",
+    OPEN: "bg-amber-50 border-amber-200",
+    RESOLVED: "bg-emerald-50 border-emerald-200",
   };
   return map[s] || "bg-gray-50 border-gray-200";
 }

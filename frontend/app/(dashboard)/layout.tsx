@@ -39,6 +39,7 @@ function getPageTitle(pathname: string): string {
     "/fraud": "Fraud Alerts",
     "/reports": "Reports & Analytics",
     "/audit": "Audit Trail",
+    "/admin/ai-control-panel": "AI Agent Control Panel",
     "/notifications": "Notifications",
     "/users": "User Management",
     "/profile": "My Profile",

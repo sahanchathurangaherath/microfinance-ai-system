@@ -8,7 +8,7 @@ import { useAuthStore } from "@/lib/store";
 import {
   LayoutDashboard, Users, FileText, CheckCircle, CreditCard,
   TrendingDown, AlertTriangle, BarChart2, Shield, UserCog,
-  Bell, User, ChevronLeft, ChevronRight, X, Building2,
+  Bell, User, ChevronLeft, ChevronRight, X, Building2, Brain,
 } from "lucide-react";
 
 interface NavItem {
@@ -118,6 +118,12 @@ export default function Sidebar({
           label: "Audit Trail",
           href: "/audit",
           icon: <Shield className="h-5 w-5" />,
+          permission: "audit:read",
+        },
+        {
+          label: "AI Control Panel",
+          href: "/admin/ai-control-panel",
+          icon: <Brain className="h-5 w-5" />,
           permission: "audit:read",
         },
         {

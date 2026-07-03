@@ -6,7 +6,7 @@ from .models import (
 
 @admin.register(AgentConfiguration)
 class AgentConfigurationAdmin(admin.ModelAdmin):
-    list_display = ('agent_id', 'llm_enabled', 'is_paused', 'confidence_threshold', 'model_override', 'daily_token_budget', 'last_changed_by', 'last_changed_at')
+    list_display = ('agent_id', 'llm_enabled', 'is_paused', 'confidence_threshold', 'model_override', 'fallback_behavior', 'daily_token_budget', 'last_changed_by', 'last_changed_at')
     list_filter = ('llm_enabled', 'is_paused')
     search_fields = ('agent_id', 'model_override')
 

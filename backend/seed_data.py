@@ -52,7 +52,7 @@ from apps.repayments.models import RepaymentSchedule, RepaymentInstallment
 from apps.approvals.models import ApprovalWorkflow, ApprovalDecision
 from apps.fraud.models import FraudAlert
 from apps.collections.models import DelinquencyCase, CollectionAction
-from apps.audit.models import AgentConfiguration, AgentConfigChangeLog
+from apps.audit.models import AgentConfiguration, AgentConfigChangeLog, SystemIncident, ManualReviewCase, AgentActionLog
 
 
 # =============================================================
@@ -1025,6 +1025,175 @@ def seed_database():
                 "confidence_threshold": default["confidence_threshold"],
                 "daily_token_budget": default["daily_token_budget"],
             }
+        )
+
+    # ── Seed AI Control Panel Audit/Incident/Review Cases data ──
+    from django.utils import timezone
+    print("     Seeding emergency incidents, manual reviews and audit change logs...")
+    admin_user = User.objects.filter(role='admin').first()
+    compliance_user = User.objects.filter(role='compliance_officer').first()
+    risk_user = User.objects.filter(role='risk_analyst').first()
+
+    # Clear existing to prevent duplicates when running seed multiple times
+    SystemIncident.objects.all().delete()
+    ManualReviewCase.objects.all().delete()
+    AgentConfigChangeLog.objects.all().delete()
+
+    # 1. System Incidents
+    incident_1 = SystemIncident.objects.create(
+        incident_type="A2_RISK_ASSESSMENT_TIMEOUT",
+        severity="PARTIAL",
+        status="OPEN",
+        agent_id="A2",
+        affected_reference="LoanApplication#1042",
+        error_message="FastAPI read timeout of 10.0s reached during credit scoring calculation.",
+        occurred_at=timezone.now() - timezone.timedelta(hours=2)
+    )
+
+    incident_2 = SystemIncident.objects.create(
+        incident_type="A5_FRAUD_SERVICE_OFFLINE",
+        severity="HARD",
+        status="RESOLVED",
+        agent_id="A5",
+        affected_reference="Client#829",
+        error_message="FastAPI server on port 8001 connection refused. Service process crashed.",
+        occurred_at=timezone.now() - timezone.timedelta(days=1),
+        resolved_at=timezone.now() - timezone.timedelta(hours=20),
+        resolved_by=admin_user,
+        resolution_notes="Restarted FastAPI docker container service. Health checks are passing."
+    )
+
+    incident_3 = SystemIncident.objects.create(
+        incident_type="A3_RECOMMENDATION_LOW_CONF",
+        severity="SOFT",
+        status="ACKNOWLEDGED",
+        agent_id="A3",
+        affected_reference="LoanApplication#1039",
+        error_message="LLM response confidence score 0.58 fell below policy threshold of 0.65.",
+        occurred_at=timezone.now() - timezone.timedelta(hours=10)
+    )
+
+    # 2. Manual Review Cases
+    ManualReviewCase.objects.create(
+        incident=incident_1,
+        agent_id="A2",
+        reference_model="LoanApplication",
+        reference_id=1042,
+        status="PENDING",
+        manual_notes="AI scoring service timed out. Manually verify bank statement income and compute credit risk score."
+    )
+
+    ManualReviewCase.objects.create(
+        incident=incident_3,
+        agent_id="A3",
+        reference_model="LoanApplication",
+        reference_id=1039,
+        status="COMPLETED",
+        assigned_to=risk_user or admin_user,
+        manual_score=75.0,
+        manual_decision="APPROVED",
+        manual_notes="Reviewed client history and income consistency. Approved manually despite low AI confidence.",
+        completed_at=timezone.now() - timezone.timedelta(hours=5)
+    )
+
+    ManualReviewCase.objects.create(
+        incident=incident_2,
+        agent_id="A5",
+        reference_model="ClientOnboarding",
+        reference_id=829,
+        status="IN_PROGRESS",
+        assigned_to=compliance_user or admin_user,
+        manual_notes="Investigating duplicate NIC matching during service downtime. Checking system records."
+    )
+
+    # 3. Seed Config Change Logs
+    AgentConfigChangeLog.objects.create(
+        agent_id="A2",
+        field_changed="confidence_threshold",
+        old_value="0.65",
+        new_value="0.75",
+        changed_by=admin_user,
+        reason="Scale up safety checks for agricultural season loans.",
+        changed_at=timezone.now() - timezone.timedelta(hours=12)
+    )
+
+    AgentConfigChangeLog.objects.create(
+        agent_id="A5",
+        field_changed="llm_enabled",
+        old_value="True",
+        new_value="False",
+        changed_by=compliance_user or admin_user,
+        reason="Temporarily disabling LLM mode due to false positive NIC matching spike.",
+        changed_at=timezone.now() - timezone.timedelta(hours=18)
+    )
+
+    AgentConfigChangeLog.objects.create(
+        agent_id="A6",
+        field_changed="daily_token_budget",
+        old_value="Unlimited",
+        new_value="500000",
+        changed_by=admin_user,
+        reason="Capping token limits for Sinhala/Tamil SMS marketing drafts campaign.",
+        changed_at=timezone.now() - timezone.timedelta(days=2)
+    )
+
+    # 4. Seed Agent Performance Logs (AgentActionLog)
+    print("     Seeding historical AgentActionLog performance data...")
+    AgentActionLog.objects.all().delete()
+    
+    agents = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']
+    agent_names = {
+        'A1': 'Data Collection Agent',
+        'A2': 'Risk Assessment Agent',
+        'A3': 'Recommendation Agent',
+        'A4': 'Monitoring Agent',
+        'A5': 'Fraud Detection Agent',
+        'A6': 'Communication Agent',
+    }
+    
+    for agent_id in agents:
+        name = agent_names[agent_id]
+        for day_offset in range(1, 21):
+            invoked_time = timezone.now() - timezone.timedelta(days=day_offset)
+            num_calls = random.randint(2, 6)
+            for call_idx in range(num_calls):
+                log = AgentActionLog.objects.create(
+                    agent_id=agent_id,
+                    agent_name=name,
+                    triggered_by=admin_user,
+                    trigger_type='automatic',
+                    input_reference=f"LoanApplication#{1000 + day_offset * 10 + call_idx}",
+                    confidence=random.uniform(0.65, 0.98),
+                    status='SUCCESS',
+                    response_time_ms=random.randint(150, 850),
+                    llm_model_used='gemini-2.5-flash',
+                    prompt_tokens_used=random.randint(500, 1500),
+                    completion_tokens_used=random.randint(200, 600),
+                )
+                AgentActionLog.objects.filter(pk=log.pk).update(invoked_at=invoked_time)
+
+    # 5. Seed AI Recommendations and Overrides for A3
+    print("     Seeding AIRecommendations for override statistics...")
+    applications = LoanApplication.objects.all()
+    
+    for idx, app in enumerate(applications):
+        AIRecommendation.objects.filter(application=app).delete()
+        is_override = (idx % 5) in [1, 3] # 40% overrides
+        decision = 'OVERRIDDEN' if is_override else 'ACCEPTED'
+        
+        AIRecommendation.objects.create(
+            application=app,
+            recommendation_type=random.choice([
+                'RECOMMEND_APPROVAL', 'RECOMMEND_APPROVAL', 'RECOMMEND_REDUCED_AMOUNT'
+            ]),
+            recommended_amount=app.requested_amount * Decimal(random.choice(["1.0", "0.9", "0.85"])),
+            recommended_duration_months=app.requested_duration_months,
+            explanation="AI assessment concluded risk is within acceptable parameters based on cashflow data.",
+            confidence=random.uniform(0.70, 0.96),
+            officer_decision=decision,
+            officer_override_reason="Overridden for testing override statistics rates." if is_override else "",
+            reviewed_by=compliance_user or admin_user,
+            reviewed_at=timezone.now() - timezone.timedelta(days=random.randint(1, 25))
         )
 
     print(f"""
