@@ -170,7 +170,7 @@ Return ONLY this JSON:
         is_valid, reason = validate_a5_output(output)
         if not is_valid:
             # Guardrail rejected — rule-based output preserved
-            return rule_output, existing_rationale
+            return rule_output, existing_rationale, {}
 
         # Weighted average fraud scoring: balance rule-based detection with LLM debate analysis
         # Rule-based: 50% (deterministic, auditable)
