@@ -50,4 +50,6 @@ def get_agent_config(agent_id: str) -> dict:
         "pause_reason": "",
         "confidence_threshold": 0.65,
         "model_override": "",
+        "fallback_behavior": "RULE_FALLBACK",
+        "daily_token_budget": None,
     }
