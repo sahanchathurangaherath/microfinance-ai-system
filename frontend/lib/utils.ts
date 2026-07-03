@@ -179,7 +179,9 @@ export function calculateEMI(
 ): number {
   if (principal <= 0 || months <= 0) return 0;
   if (annualRate <= 0) return principal / months;
-  const r = annualRate / 12 / 100;
-  const emi = (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
-  return Math.round(emi * 100) / 100;
+  const monthlyRate = annualRate / 100 / 12;
+  const totalInterest = principal * monthlyRate * months;
+  const totalRepayable = principal + totalInterest;
+  const monthlyInstallment = totalRepayable / months;
+  return Math.round(monthlyInstallment * 100) / 100;
 }

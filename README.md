@@ -107,8 +107,8 @@ assists, recommends, or alerts — but never takes autonomous action.
       └──────────────────────┘
                │
        ┌───────▼────────┐
-       │   Gemini API   │
-       │ 2.0 Flash SDK  │
+       │   local LLM   │
+       │   │
        └────────────────┘
 ```
 
@@ -522,15 +522,7 @@ No code change. No migration. No downtime. Takes 5 seconds.
 6. A4_USE_LLM=true   ← Behavioural pattern prediction (rules always run too)
 ```
 
-### Upgrade Guide Files
 
-| File | Covers |
-|---|---|
-| `docs/LLM_UPGRADE_PHASE_01_TO_05.md` | gemini_client.py, guardrails.py, A1, A2 |
-| `docs/LLM_UPGRADE_PHASE_06_TO_10.md` | A3, A4 (monitoring prediction layer) |
-| `docs/LLM_UPGRADE_PHASE_11_TO_15.md` | A5 hybrid, A6 multilingual, audit fields |
-
----
 
 ## 📡 API Overview
 
@@ -660,33 +652,6 @@ LOAN CLOSED
 
 ---
 
-## 📦 Phase Build Order
-
-The system is built phase by phase. Phases 1–5 are complete.
-
-```
-✅  Phase 1   Project Setup — Docker, JWT, BaseAgent
-✅  Phase 2   Users & Roles — RBAC, login, 8 roles
-✅  Phase 3   Client Onboarding & KYC — A1 agent
-✅  Phase 4   Loan Applications — status workflow
-✅  Phase 5   Risk Assessment — A2 agent, credit memo
-⬜  Phase 6   Recommendation — A3 agent, override audit
-⬜  Phase 7   Approval Workflow — analyst → manager → committee
-⬜  Phase 8   Disbursement — condition checklist, schedule generation
-⬜  Phase 9   Repayments — payments, receipts, A4 monitoring
-⬜  Phase 10  Collections — delinquency cases, PTP, escalation
-⬜  Phase 11  Fraud Detection — A5 agent, investigation workflow
-⬜  Phase 12  Communications — A6 agent, multilingual, send approval
-⬜  Phase 13  Reporting & Dashboard — KPIs, role-based views, CSV export
-⬜  Phase 14  Audit & Security — immutable logs, LLM metadata fields
-⬜  Phase 15  Manual Mode — AI failure handling, incident management
-⬜  Phase 16-A  LLM: A2 Gemini risk scoring
-⬜  Phase 16-B  LLM: A3 few-shot recommendation
-⬜  Phase 16-C  LLM: A1 KYC + A5 hybrid + A6 multilingual
-⬜  Phase 16-D  Orchestrator: Manager Agent + Shared Memory Bus
-```
-
-Each phase has a dedicated guide in `docs/`.
 
 ---
 
@@ -751,24 +716,6 @@ Login flow:
 
 ---
 
-## 📄 Documents
-
-All project documentation is in the `docs/` folder:
-
-| Document | Purpose |
-|---|---|
-| `MASTER_REFERENCE.md` | Complete API map, DB schema, role matrix |
-| `PHASE_01` → `PHASE_15.md` | Step-by-step implementation guide per phase |
-| `AI_Agent_Documentation.pdf` | Agent roles, responsibilities, KPI targets |
-| `MF_AI_SOP_document.pdf` | SOP MF-AI-SOP-001 — operational procedures |
-| `LLM_UPGRADE_PHASE_01_TO_05.md` | Code changes for Phases 1–5 LLM upgrade |
-| `LLM_UPGRADE_PHASE_06_TO_10.md` | Code changes for Phases 6–10 LLM upgrade |
-| `LLM_UPGRADE_PHASE_11_TO_15.md` | Code changes for Phases 11–15 LLM upgrade |
-| `LLM_DESIGN_DECISION_EXPLAINED.md` | Why different agents use different patterns |
-| `FULL_LLM_MULTI_AGENT_FINAL_ANSWER.md` | Final architecture decision |
-| `MICROFINANCE_AI_SYSTEM_FULL_REPORT.md` | Complete technical project report |
-
----
 
 ## ⚠️ Important Notes
 
@@ -788,13 +735,13 @@ of `A5_USE_LLM`. This is by design for legal and compliance reasons.
 
 ## 📝 License
 
-Internal project — PlusMark.lk. All rights reserved.
+Internal project  All rights reserved.
 
 ---
 
 <div align="center">
 
-**Built by [PlusMark.lk](https://plusmark.lk)**
+**Built by *
 
 *AI assists. Humans decide. System records everything.*
 

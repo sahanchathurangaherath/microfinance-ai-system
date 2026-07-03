@@ -91,8 +91,8 @@ class PostPaymentView(APIView):
             return Response({"error": "Payment amount must be greater than 0."}, status=400)
 
         try:
-            loan = Loan.objects.get(pk=loan_id)
-            installment = RepaymentInstallment.objects.get(pk=installment_id)
+            loan = Loan.objects.select_for_update().get(pk=loan_id)
+            installment = RepaymentInstallment.objects.select_for_update().get(pk=installment_id)
         except (Loan.DoesNotExist, RepaymentInstallment.DoesNotExist):
             return Response({"error": "Loan or installment not found."}, status=404)
 

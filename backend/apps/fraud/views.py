@@ -185,7 +185,7 @@ class CloseAlertView(APIView):
     """Compliance Officer closes an alert after investigation."""
     permission_classes = [IsComplianceOfficer]
 
-    def post(self, request, alert_id):
+    def patch(self, request, alert_id):
         try:
             alert = FraudAlert.objects.get(pk=alert_id)
         except FraudAlert.DoesNotExist:

@@ -415,6 +415,7 @@ class AgentPerformanceView(APIView):
 
     def get(self, request, agent_id):
         from django.db.models import Avg, Count, Sum
+        from django.db.models.functions import TruncDate
         from datetime import timedelta
         from django.utils import timezone
         from django.db import models
@@ -424,8 +425,8 @@ class AgentPerformanceView(APIView):
 
         logs = AgentActionLog.objects.filter(agent_id=agent_id, invoked_at__gte=since)
 
-        daily_stats = logs.extra(
-            select={'day': "date(invoked_at)"}
+        daily_stats = logs.annotate(
+            day=TruncDate('invoked_at')
         ).values('day').annotate(
             avg_confidence=Avg('confidence'),
             call_count=Count('id'),

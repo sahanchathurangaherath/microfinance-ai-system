@@ -5,7 +5,11 @@ from rest_framework import status
 
 from apps.users.models import User
 from apps.clients.models import Client, ClientIncome
-from apps.loans.models import LoanProduct, LoanApplication, CashflowAssessment
+from apps.loans.models import (
+    LoanProduct, LoanApplication, CashflowAssessment,
+    DisbursementCondition, Loan, Disbursement
+)
+from apps.approvals.models import ApprovalWorkflow, ApprovalDecision
 
 
 class LoanWorkflowTests(TestCase):
@@ -109,3 +113,51 @@ class LoanWorkflowTests(TestCase):
 
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, 'RISK_ASSESSED')
+
+    def test_process_disbursement_after_approved_application(self):
+        finance_staff = User.objects.create_user(
+            username='finance_staff',
+            password='password',
+            role='finance_staff'
+        )
+        branch_manager = User.objects.create_user(
+            username='branch_manager',
+            password='password',
+            role='branch_manager'
+        )
+
+        self.application.status = 'APPROVED'
+        self.application.save()
+
+        workflow = ApprovalWorkflow.objects.create(
+            application=self.application,
+            requires_committee=False
+        )
+        ApprovalDecision.objects.create(
+            workflow=workflow,
+            step='BRANCH_MANAGER',
+            decision='APPROVED',
+            decided_by=branch_manager,
+            comments='Approved for disbursement'
+        )
+
+        DisbursementCondition.objects.create(
+            application=self.application,
+            condition_text='Collateral verified',
+            is_met=True
+        )
+        DisbursementCondition.objects.create(
+            application=self.application,
+            condition_text='Insurance confirmed',
+            is_met=True
+        )
+
+        self.client.force_authenticate(user=finance_staff)
+        response = self.client.post(f'/api/loans/disbursements/{self.application.id}/process/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, 'DISBURSED')
+        self.assertTrue(Loan.objects.filter(application=self.application).exists())
+        self.assertTrue(Disbursement.objects.filter(application=self.application).exists())
+        self.assertEqual(response.data['message'], 'Loan disbursed successfully.')

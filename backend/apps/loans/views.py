@@ -666,7 +666,7 @@ class ProcessDisbursementView(APIView):
     @transaction.atomic
     def post(self, request, pk):
         try:
-            application = LoanApplication.objects.get(pk=pk)
+            application = LoanApplication.objects.select_for_update().get(pk=pk)
         except LoanApplication.DoesNotExist:
             return Response({"error": "Application not found"}, status=404)
 

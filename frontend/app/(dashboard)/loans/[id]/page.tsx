@@ -342,7 +342,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <Button className="w-full" variant="primary" icon={<Brain className="h-4 w-4" />} onClick={handleTriggerAI} loading={isActioning}>Run AI Assessment</Button>
               )}
 
-              {(role === "risk_analyst" || role === "admin") && (loan.status === "AI_SCREENING" || loan.status === "RISK_REVIEWED") && riskAssessment && (
+              {(role === "risk_analyst" || role === "admin") && (loan.status === "AI_SCREENING" || loan.status === "RISK_ASSESSED" || loan.status === "RISK_REVIEWED") && riskAssessment && (
                 <div className="space-y-3">
                   <p className="text-[13px] font-semibold text-[var(--text-primary)]">Risk Analyst Review</p>
                   <textarea rows={3} placeholder="Enter your review notes..." value={actionComments} onChange={(e) => setActionComments(e.target.value)} className="form-input resize-none text-[13px]" />
