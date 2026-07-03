@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 
 def calculate_monthly_installment(principal, annual_rate, months):
     """
-    Calculates fixed monthly installment using flat interest method (common in microfinance).
+    Calculates fixed monthly installment using flat interest method .
     Formula: (Principal + Total Interest) / Months
     """
     monthly_rate = Decimal(str(annual_rate)) / Decimal('100') / Decimal('12')

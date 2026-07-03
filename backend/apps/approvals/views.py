@@ -86,6 +86,12 @@ class RiskAnalystDecisionView(APIView):
         except LoanApplication.DoesNotExist:
             return Response({"error": "Application not found"}, status=404)
 
+        if application.status not in ['RISK_ASSESSED', 'RISK_REVIEWED']:
+            return Response(
+                {"error": "Application must be risk assessed or reviewed before approval decision."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         workflow = _get_or_create_workflow(application)
 
         decision_value = request.data.get("decision")
@@ -124,7 +130,7 @@ class RiskAnalystDecisionView(APIView):
         
         # Log human decision
         ai_recommendation = getattr(
-            getattr(application, 'risk_assessment', None),
+            getattr(application, 'ai_recommendation', None),
             'recommendation_type', ''
         )
         log_human_decision(
@@ -187,7 +193,7 @@ class BranchManagerDecisionView(APIView):
         except (LoanApplication.DoesNotExist, ApprovalWorkflow.DoesNotExist):
             return Response({"error": "Not found"}, status=404)
 
-        if workflow.status != 'PENDING_MANAGER_REVIEW':
+        if workflow.status != 'PENDING_MANAGER_REVIEW' or application.status != 'MANAGER_REVIEW':
             return Response(
                 {"error": "Application is not pending manager review."},
                 status=status.HTTP_400_BAD_REQUEST
@@ -237,20 +243,8 @@ class BranchManagerDecisionView(APIView):
             followed_ai=ai_followed,
             override_justification=override_reason
         )
-        
-        # Log to main audit trail
-        prev_status = application.status
-        log_action(
-            user=request.user,
-            action_type='APPROVAL',
-            model_name='LoanApplication',
-            object_id=str(application.id),
-            description=f"Manager decision: {decision_value} by {request.user.role}",
-            status_before=prev_status,
-            status_after=decision_value,
-            request=request
-        )
 
+        prev_status = application.status
         if decision_value == "APPROVED":
             # Large loans MUST go to committee regardless
             if workflow.requires_committee:
@@ -285,6 +279,17 @@ class BranchManagerDecisionView(APIView):
                 application, application.status, 'COMMITTEE_REVIEW', request.user, comments
             )
 
+        log_action(
+            user=request.user,
+            action_type='APPROVAL',
+            model_name='LoanApplication',
+            object_id=str(application.id),
+            description=f"Manager decision: {decision_value} by {request.user.role}",
+            status_before=prev_status,
+            status_after=application.status,
+            request=request
+        )
+
         return Response({
             "message": f"Branch Manager decision: {decision_value}",
             "workflow_status": workflow.status
@@ -311,6 +316,12 @@ class CommitteeVoteView(APIView):
         if workflow.status != 'PENDING_COMMITTEE':
             return Response(
                 {"error": "Application is not pending committee review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if committee.quorum_reached:
+            return Response(
+                {"error": "Credit Committee decision has already been finalized."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -346,6 +357,7 @@ class CommitteeVoteView(APIView):
         total_votes = committee.vote_for + committee.vote_against
         if total_votes >= 2:
             committee.quorum_reached = True
+            prev_status = application.status
             if committee.vote_for > committee.vote_against:
                 committee.final_decision = "APPROVED"
                 workflow.status = "APPROVED"
@@ -363,6 +375,16 @@ class CommitteeVoteView(APIView):
             committee.finalized_at = timezone.now()
             committee.save()
             workflow.save()
+            log_action(
+                user=request.user,
+                action_type='APPROVAL',
+                model_name='LoanApplication',
+                object_id=str(application.id),
+                description=f"Credit Committee final decision: {committee.final_decision}",
+                status_before=prev_status,
+                status_after=workflow.status,
+                request=request
+            )
 
         return Response({
             "message": f"Vote recorded: {vote}",
