@@ -161,9 +161,11 @@ class MonitoringAgent(BaseAgent):
         """
         For each overdue loan, call the local LLM to classify the payment
         behaviour pattern and predict default probability.
+        Runs in parallel to prevent sequential bottleneck.
         Falls back silently if the LLM fails — rule-based data remains intact.
         """
         import json
+        import concurrent.futures
         from services.llm_client import call_llm
         from services.guardrails import validate_a4_llm_output
 
@@ -175,6 +177,14 @@ class MonitoringAgent(BaseAgent):
 
         # Process each unique overdue loan (not each installment)
         processed_loan_ids = set()
+        unique_loans_to_predict = []
+        for case in overdue_cases:
+            loan_id = case["loan_id"]
+            if loan_id in processed_loan_ids:
+                continue
+            processed_loan_ids.add(loan_id)
+            unique_loans_to_predict.append(case)
+
         predictions = {}
         usage = {
             "prompt_tokens": 0,
@@ -183,20 +193,17 @@ class MonitoringAgent(BaseAgent):
             "call_count": 0,
         }
 
-        for case in overdue_cases:
-            loan_id = case["loan_id"]
-            if loan_id in processed_loan_ids:
-                continue
-            processed_loan_ids.add(loan_id)
+        if unique_loans_to_predict:
+            def predict_single_loan(case):
+                loan_id = case["loan_id"]
+                history = loan_history.get(loan_id, [])
 
-            history = loan_history.get(loan_id, [])
-
-            SYSTEM_PROMPT = """You are a Portfolio Risk Analyst for a microfinance institution.
+                SYSTEM_PROMPT = """You are a Portfolio Risk Analyst for a microfinance institution.
 Analyse repayment patterns and predict default probability.
 You assist the Collections Officer — you cannot freeze accounts or take direct action.
 Always respond with valid JSON only."""
 
-            USER_PROMPT = f"""Analyse the repayment behaviour for loan {case['loan_number']}.
+                USER_PROMPT = f"""Analyse the repayment behaviour for loan {case['loan_number']}.
 
 INSTALLMENT HISTORY:
 {json.dumps(history, indent=2, default=str)}
@@ -216,10 +223,21 @@ Return ONLY this JSON:
   "pattern_reasoning": "<1-2 sentence explanation>"
 }}"""
 
-            try:
-                output, llm_usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
-                is_valid, _ = validate_a4_llm_output(output)
-                if is_valid:
+                try:
+                    output, llm_usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
+                    is_valid, _ = validate_a4_llm_output(output)
+                    if is_valid:
+                        return loan_id, output, llm_usage
+                except Exception:
+                    pass
+                return loan_id, None, None
+
+            max_workers = min(10, len(unique_loans_to_predict))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = list(executor.map(predict_single_loan, unique_loans_to_predict))
+
+            for loan_id, output, llm_usage in results:
+                if output and llm_usage:
                     output["usage_metadata"] = llm_usage
                     predictions[loan_id] = output
                     usage["prompt_tokens"] += llm_usage.get("prompt_tokens", 0)
@@ -227,9 +245,6 @@ Return ONLY this JSON:
                     usage["call_count"] += 1
                     if usage["model_used"] is None:
                         usage["model_used"] = llm_usage.get("model_used")
-            except Exception:
-                # Silent fallback — rule-based data remains intact.
-                pass
 
         # Apply predictions to all cases for that loan
         for case in overdue_cases:

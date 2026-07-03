@@ -155,8 +155,17 @@ class SubmitApplicationView(APIView):
             reason="Application submitted by loan officer"
         )
 
+        # Immediately advance to AI screening so the application can enter the A2 pipeline.
+        log_status_change(
+            application=application,
+            from_status=application.status,
+            to_status='AI_SCREENING',
+            user=request.user,
+            reason="Application submitted and queued for AI screening"
+        )
+
         return Response({
-            "message": "Application submitted successfully. Pending KYC validation.",
+            "message": "Application submitted successfully. Pending AI screening.",
             "application_number": application.application_number,
             "status": application.status
         })
@@ -253,10 +262,19 @@ class TriggerRiskAssessmentView(APIView):
         except LoanApplication.DoesNotExist:
             return Response({"error": "Application not found"}, status=404)
 
-        if application.status != 'AI_SCREENING':
+        if application.status not in ['AI_SCREENING', 'SUBMITTED']:
             return Response(
-                {"error": "Application must be in AI_SCREENING status to run risk assessment."},
+                {"error": "Application must be in SUBMITTED or AI_SCREENING status to run risk assessment."},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if application.status == 'SUBMITTED':
+            log_status_change(
+                application=application,
+                from_status=application.status,
+                to_status='AI_SCREENING',
+                user=request.user,
+                reason="Application resumed from SUBMITTED and queued for AI screening"
             )
 
         client = application.client
@@ -330,6 +348,14 @@ class TriggerRiskAssessmentView(APIView):
             defaults={"content": memo_content}
         )
 
+        log_status_change(
+            application=application,
+            from_status=application.status,
+            to_status='RISK_ASSESSED',
+            user=request.user,
+            reason="AI risk assessment completed and saved"
+        )
+
         return Response({
             "message": "Risk assessment completed.",
             "risk_score": output.get("risk_score"),
@@ -392,6 +418,10 @@ class RiskAnalystReviewView(APIView):
         risk.reviewed_at = timezone.now()
         risk.analyst_notes = analyst_notes
         risk.save()
+
+        # Ensure the approval workflow record exists before moving into review.
+        from apps.approvals.views import _get_or_create_workflow
+        _get_or_create_workflow(application)
 
         # Advance status
         from .utils import log_status_change

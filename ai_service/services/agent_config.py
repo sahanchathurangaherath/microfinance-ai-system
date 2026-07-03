@@ -12,7 +12,7 @@ _API_KEY    = config("AI_SERVICE_API_KEY", default="internal-ai-key-change-this"
 
 _cache = {}
 _cache_time = 0
-_CACHE_TTL = 30  # seconds
+_CACHE_TTL = 2  # seconds
 
 
 def get_agent_config(agent_id: str) -> dict:

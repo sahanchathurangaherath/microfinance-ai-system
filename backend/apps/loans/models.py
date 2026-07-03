@@ -26,6 +26,7 @@ class LoanApplication(models.Model):
         ('DRAFT', 'Draft'),
         ('SUBMITTED', 'Submitted'),
         ('AI_SCREENING', 'AI Screening'),
+        ('RISK_ASSESSED', 'Risk Assessed'),
         ('RISK_REVIEWED', 'Risk Reviewed'),
         ('MANAGER_REVIEW', 'Manager Review'),
         ('COMMITTEE_REVIEW', 'Committee Review'),
