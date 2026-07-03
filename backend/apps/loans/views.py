@@ -445,9 +445,9 @@ class TriggerRecommendationView(APIView):
             )
         
         # BUG-BE-16: Check application status before calling A3
-        if application.status not in ['AI_SCREENING', 'RISK_ASSESSED']:
+        if application.status not in ['AI_SCREENING', 'RISK_ASSESSED', 'RISK_REVIEWED']:
             return Response(
-                {"error": f"Application must be in AI_SCREENING or RISK_ASSESSED status, currently: {application.status}"},
+                {"error": f"Application must be in AI_SCREENING, RISK_ASSESSED, or RISK_REVIEWED status, currently: {application.status}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
