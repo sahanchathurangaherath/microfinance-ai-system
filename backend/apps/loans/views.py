@@ -282,6 +282,10 @@ class TriggerRiskAssessmentView(APIView):
         cashflow = getattr(application, 'cashflow', None)
         business = getattr(client, 'business', None)
 
+        from apps.repayments.models import RepaymentInstallment
+        previous_loans_count = client.loans.count()
+        missed_payments = RepaymentInstallment.objects.filter(schedule__loan__client=client, status='OVERDUE').count()
+
         # Build A2 payload
         payload = {
             "loan_id": application.id,
@@ -297,8 +301,8 @@ class TriggerRiskAssessmentView(APIView):
                 "debt_to_income_ratio": cashflow.debt_to_income_ratio if cashflow else None,
             },
             "repayment_history": {
-                "previous_loans_count": 0,   # Will come from repayment module in later phases
-                "missed_payments": 0,
+                "previous_loans_count": previous_loans_count,
+                "missed_payments": missed_payments,
             }
         }
 
@@ -485,6 +489,8 @@ class TriggerRecommendationView(APIView):
         income = getattr(client, 'income', None)
         cashflow = getattr(application, 'cashflow', None)
 
+        has_repayment_history = client.loans.exists()
+
         payload = {
             "loan_id": application.id,
             "risk_score": risk.risk_score,
@@ -495,7 +501,7 @@ class TriggerRecommendationView(APIView):
             "monthly_income": float(income.monthly_income) if income else 0,
             "requested_duration_months": application.requested_duration_months,
             "debt_to_income_ratio": cashflow.debt_to_income_ratio if cashflow else 0,
-            "has_repayment_history": False,  # Updated in Phase 9
+            "has_repayment_history": has_repayment_history,
         }
 
         # Call A3 via Policy Engine
