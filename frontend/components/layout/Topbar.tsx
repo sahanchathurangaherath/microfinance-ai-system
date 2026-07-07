@@ -7,7 +7,7 @@ import { Menu, Search, Bell, ChevronDown, User, LogOut, Settings } from "lucide-
 import { useAuthStore } from "@/lib/store";
 import { clearTokens, getRefreshToken } from "@/lib/auth";
 import { authAPI, fetcher } from "@/lib/api";
-import { getInitials, cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils";
 import useSWR from "swr";
 
 interface TopbarProps {
@@ -19,7 +19,6 @@ interface TopbarProps {
 export default function Topbar({
   onMenuToggle,
   pageTitle,
-  sidebarCollapsed = false,
 }: TopbarProps) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -27,7 +26,7 @@ export default function Topbar({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: notificationsData } = useSWR(null, fetcher, { 
+  const { data: notificationsData } = useSWR("/notifications?is_read=false", fetcher, { 
     refreshInterval: 15000 
   });
   const unreadCount = notificationsData?.count ?? (Array.isArray(notificationsData?.results) ? notificationsData.results.length : 0);

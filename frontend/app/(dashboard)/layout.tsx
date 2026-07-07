@@ -41,6 +41,7 @@ function getPageTitle(pathname: string): string {
     "/audit": "Audit Trail",
     "/admin/ai-control-panel": "AI Agent Control Panel",
     "/notifications": "Notifications",
+    "/notifications-queue": "Communication Queue",
     "/users": "User Management",
     "/profile": "My Profile",
   };
@@ -52,6 +53,8 @@ function getPageTitle(pathname: string): string {
   if (cleanPathname.startsWith("/clients/") && cleanPathname !== "/clients/new" && cleanPathname !== "/clients/") return "Client Profile";
   if (cleanPathname.startsWith("/loans/") && cleanPathname !== "/loans/new" && cleanPathname !== "/loans/") return "Loan Application";
   if (cleanPathname.startsWith("/approvals/")) return "Approval Detail";
+  if (cleanPathname.startsWith("/collections/") && cleanPathname !== "/collections/") return "Collection Case";
+  if (cleanPathname.startsWith("/fraud/") && cleanPathname !== "/fraud/") return "Fraud Alert Review";
 
   return "MicroFinance AI";
 }

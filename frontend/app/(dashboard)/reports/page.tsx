@@ -5,7 +5,7 @@ import Card from "@/components/ui/Card";
 import StatCard from "@/components/ui/StatCard";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import Table, { Column } from "@/components/ui/Table";
+import Table from "@/components/ui/Table";
 import Badge from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/utils";
 
@@ -22,37 +22,9 @@ export default function ReportsPage() {
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isViewing, setIsViewing] = useState<string | null>(null);
   const [viewData, setViewData] = useState<{ id: string; title: string; data: any } | null>(null);
-  
+
   const { data: dashboard, isLoading } = useSWR(can("reports:read") ? "/reports/dashboard/" : null, fetcher);
   const { data: disbursementsData } = useSWR(can("reports:read") ? "/reports/disbursements/" : null, fetcher);
-
-  if (!can("reports:read")) {
-    return (
-      <Card className="flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
-        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mb-3">
-          <ShieldAlert className="h-6 w-6 text-red-600" />
-        </div>
-        <h3 className="text-lg font-bold text-[var(--text-primary)]">Access Denied</h3>
-        <p className="text-[var(--text-muted)] text-sm mt-2">
-          You do not have permission to view Reports & Analytics.
-        </p>
-      </Card>
-    );
-  }
-
-  const totalAUM = dashboard?.loans?.total_outstanding || dashboard?.portfolio?.total_outstanding || 0;
-  const activeClients = dashboard?.clients?.active || "N/A";
-  const nplRatio = dashboard?.default_rate?.default_rate_percent !== undefined ? `${dashboard.default_rate.default_rate_percent}%` : "N/A";
-  const activeLoans = dashboard?.loans?.active || dashboard?.portfolio?.total_active_loans || "N/A";
-
-  const reports = [
-    { id: "portfolio", title: "Portfolio Summary", desc: "Overall lending portfolio health and composition", icon: <PieChart className="h-6 w-6 text-blue-600" />, bg: "bg-blue-50" },
-    { id: "disbursement", title: "Disbursement Report", desc: "Monthly disbursement volumes and trends", icon: <DollarSign className="h-6 w-6 text-emerald-600" />, bg: "bg-emerald-50" },
-    { id: "arrears", title: "Collection Report", desc: "Recovery rates and overdue loan tracking", icon: <TrendingUp className="h-6 w-6 text-purple-600" />, bg: "bg-purple-50" },
-    { id: "agent_performance", title: "Client Analytics", desc: "Client demographics and acquisition trends", icon: <Users className="h-6 w-6 text-cyan-600" />, bg: "bg-cyan-50" },
-    { id: "default_rate", title: "Loan Pipeline", desc: "Application funnel and conversion rates", icon: <FileText className="h-6 w-6 text-amber-600" />, bg: "bg-amber-50" },
-    { id: "risk_distribution", title: "Risk Distribution", desc: "Risk scoring breakdown across portfolio", icon: <BarChart2 className="h-6 w-6 text-red-600" />, bg: "bg-red-50" },
-  ];
 
   const handleExport = async (reportId: string) => {
     try {
@@ -85,6 +57,42 @@ export default function ReportsPage() {
     }
   };
 
+  if (!can("reports:read")) {
+    return (
+      <Card className="flex flex-col items-center justify-center text-center py-16 max-w-md mx-auto">
+        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mb-3">
+          <ShieldAlert className="h-6 w-6 text-red-600" />
+        </div>
+        <h3 className="text-lg font-bold text-[var(--text-primary)]">Access Denied</h3>
+        <p className="text-[var(--text-muted)] text-sm mt-2">
+          You do not have permission to view Reports &amp; Analytics.
+        </p>
+      </Card>
+    );
+  }
+
+  // Handles both admin overview shape and loan officer personalised shape
+  const totalAUM = dashboard?.loans?.total_outstanding || dashboard?.portfolio?.total_outstanding || 0;
+  const activeClients = dashboard?.clients?.active ?? dashboard?.clients?.total ?? 0;
+  const nplRatio =
+    dashboard?.default_rate?.default_rate_percent !== undefined
+      ? `${dashboard.default_rate.default_rate_percent}%`
+      : "0%";
+  const activeLoans =
+    dashboard?.loans?.active ??
+    dashboard?.portfolio?.total_active_loans ??
+    dashboard?.applications?.total ??
+    0;
+
+  const reports = [
+    { id: "portfolio", title: "Portfolio Summary", desc: "Overall lending portfolio health and composition", icon: <PieChart className="h-6 w-6 text-blue-600" />, bg: "bg-blue-50" },
+    { id: "disbursement", title: "Disbursement Report", desc: "Monthly disbursement volumes and trends", icon: <DollarSign className="h-6 w-6 text-emerald-600" />, bg: "bg-emerald-50" },
+    { id: "arrears", title: "Collection Report", desc: "Recovery rates and overdue loan tracking", icon: <TrendingUp className="h-6 w-6 text-purple-600" />, bg: "bg-purple-50" },
+    { id: "agent_performance", title: "Client Analytics", desc: "Client demographics and acquisition trends", icon: <Users className="h-6 w-6 text-cyan-600" />, bg: "bg-cyan-50" },
+    { id: "default_rate", title: "Loan Pipeline", desc: "Application funnel and conversion rates", icon: <FileText className="h-6 w-6 text-amber-600" />, bg: "bg-amber-50" },
+    { id: "risk_distribution", title: "Risk Distribution", desc: "Risk scoring breakdown across portfolio", icon: <BarChart2 className="h-6 w-6 text-red-600" />, bg: "bg-red-50" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -99,7 +107,7 @@ export default function ReportsPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="Total Portfolio (AUM)" value={totalAUM ? formatCurrency(Number(totalAUM)) : "N/A"} loading={isLoading} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
+        <StatCard title="Total Portfolio (AUM)" value={totalAUM ? formatCurrency(Number(totalAUM)) : "LKR 0"} loading={isLoading} icon={<DollarSign className="h-5 w-5 text-blue-600" />} iconBg="bg-blue-50" />
         <StatCard title="Active Clients" value={activeClients} loading={isLoading} icon={<Users className="h-5 w-5 text-emerald-600" />} iconBg="bg-emerald-50" />
         <StatCard title="Active Loans" value={activeLoans} loading={isLoading} icon={<FileText className="h-5 w-5 text-purple-600" />} iconBg="bg-purple-50" />
         <StatCard title="NPL / Default Rate" value={nplRatio} loading={isLoading} icon={<TrendingUp className="h-5 w-5 text-amber-600" />} iconBg="bg-amber-50" />
@@ -142,9 +150,9 @@ export default function ReportsPage() {
                 value: Number(d.total_amount) || 0,
                 pct: ((Number(d.total_amount) || 0) / maxDisbursement) * 100,
               }));
-              
+
               if (chartItems.length === 0) {
-                return <div className="w-full h-full flex items-center justify-center text-sm text-[var(--text-muted)]">No data available</div>;
+                return <div className="w-full h-full flex items-center justify-center text-sm text-[var(--text-muted)]">No disbursement data available</div>;
               }
 
               return chartItems.map((m: any, idx: number) => (

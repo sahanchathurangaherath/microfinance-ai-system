@@ -106,3 +106,38 @@ class NotificationLog(models.Model):
 
     class Meta:
         db_table = 'notification_logs'
+
+
+class UserNotification(models.Model):
+    """In-app notification for a staff user (loan officer, admin, etc.)."""
+
+    TYPE_CHOICES = [
+        ('INFO', 'Info'),
+        ('SUCCESS', 'Success'),
+        ('WARNING', 'Warning'),
+        ('ERROR', 'Error'),
+        ('FRAUD_ALERT', 'Fraud Alert'),
+        ('LOAN_STATUS', 'Loan Status'),
+        ('APPROVAL_REQUIRED', 'Approval Required'),
+    ]
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='user_notifications'
+    )
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=30, choices=TYPE_CHOICES, default='INFO')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Optional link to a related object
+    link_url = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"[{self.notification_type}] {self.title} → {self.recipient} (read={self.is_read})"
+
+    class Meta:
+        db_table = 'user_notifications'
+        ordering = ['-created_at']

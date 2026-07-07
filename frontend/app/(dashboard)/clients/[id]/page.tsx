@@ -47,7 +47,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
   const kycColumns = [
     { id: "type", header: "Document Type", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.document_type || "—").replace(/_/g, " ")}</span> },
-    { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.verification_status || "PENDING")} /> },
+    { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.status || "PENDING")} /> },
     { id: "uploaded", header: "Uploaded", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatDate(String(r.uploaded_at || new Date()))}</span> },
     { id: "actions", header: "Actions", cell: (r: Record<string,unknown>) => r.file ? <a href={String(r.file)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-[13px]">View</a> : null },
   ];

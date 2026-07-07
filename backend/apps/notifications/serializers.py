@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import NotificationQueue, NotificationLog, NotificationTemplate
+from .models import NotificationQueue, NotificationLog, NotificationTemplate, UserNotification
 
 
 class NotificationQueueSerializer(serializers.ModelSerializer):
@@ -29,3 +29,10 @@ class NotificationTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationTemplate
         fields = '__all__'
+
+
+class UserNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserNotification
+        fields = ['id', 'title', 'message', 'notification_type', 'is_read', 'created_at', 'link_url']
+        read_only_fields = ['id', 'title', 'message', 'notification_type', 'created_at', 'link_url']

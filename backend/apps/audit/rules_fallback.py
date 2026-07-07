@@ -312,21 +312,21 @@ def a4_monitoring_rules(input_data: Dict) -> Dict:
             days_overdue = (today - due_date).days
             outstanding = float(inst.get("outstanding", inst.get("amount_due", 0)))
             
-            # Simple bucket classification
+            # Simple bucket classification — must match MonitoringAgent naming exactly
             if days_overdue <= 7:
-                bucket = "1-7 Days"
+                bucket = "BUCKET_1_7"
                 severity = "EARLY_OVERDUE"
-                recommended_action = "SEND_SMS_REMINDER"
+                recommended_action = "SEND_REMINDER"
                 early_overdue_count += 1
             elif days_overdue <= 30:
-                bucket = "8-30 Days"
+                bucket = "BUCKET_8_30"
                 severity = "WARNING"
-                recommended_action = "PLACE_OFFICER_CALL"
+                recommended_action = "COLLECTIONS_CONTACT"
                 warning_count += 1
             else:
-                bucket = ">30 Days"
+                bucket = "BUCKET_OVER_30"
                 severity = "CRITICAL"
-                recommended_action = "DISPATCH_FIELD_VISIT"
+                recommended_action = "ESCALATE_TO_MANAGER"
                 critical_count += 1
 
             overdue_cases.append({
@@ -493,7 +493,7 @@ def a6_communication_rules(input_data: Dict) -> Dict:
         drafts.append({
             "channel": channel,
             "subject": subject if channel == "EMAIL" else "",
-            "message_body": body,
+            "body": body,
             "language": "en",
         })
 

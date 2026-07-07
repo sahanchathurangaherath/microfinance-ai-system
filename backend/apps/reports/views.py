@@ -116,17 +116,8 @@ class RoleBasedDashboardView(APIView):
             return Response(DashboardService.get_disbursement_summary())
 
         else:
-            # Loan officers see basic loan pipeline
-            from apps.loans.models import LoanApplication
-            from django.db.models import Count
-            return Response({
-                "my_applications": (
-                    LoanApplication.objects
-                    .filter(created_by=request.user)
-                    .values('status')
-                    .annotate(count=Count('id'))
-                )
-            })
+            # Loan officers see their own pipeline stats
+            return Response(DashboardService.get_loan_officer_dashboard(request.user))
 
 
 class ExportReportView(APIView):

@@ -9,8 +9,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from .models import NotificationQueue, NotificationLog, NotificationTemplate
-from .serializers import NotificationQueueSerializer, NotificationLogSerializer
+from .models import NotificationQueue, NotificationLog, NotificationTemplate, UserNotification
+from .serializers import NotificationQueueSerializer, NotificationLogSerializer, UserNotificationSerializer
 from apps.audit.utils import log_agent_action
 from apps.users.permissions import IsLoanOfficer, IsCollectionsOfficer
 
@@ -97,6 +97,14 @@ class PendingApprovalView(generics.ListAPIView):
 
     def get_queryset(self):
         return NotificationQueue.objects.filter(status='PENDING_APPROVAL')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "count": queryset.count(),
+            "results": serializer.data
+        })
 
 
 class ApproveNotificationView(APIView):
@@ -245,3 +253,72 @@ class NotificationLogListView(generics.ListAPIView):
 
     def get_queryset(self):
         return NotificationLog.objects.all().select_related('notification')
+
+
+class NotificationQueueListView(generics.ListAPIView):
+    """List all notification queue items (pending, approved, rejected, sent, failed)."""
+    serializer_class = NotificationQueueSerializer
+    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+
+    def get_queryset(self):
+        return NotificationQueue.objects.all().order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        # Always wrap in results envelope so frontend data?.results works
+        return Response({
+            "count": queryset.count(),
+            "results": serializer.data
+        })
+
+
+# ─── User (In-App) Notification Views ────────────────────────────────────────
+
+class UserNotificationListView(generics.ListAPIView):
+    """
+    Returns in-app notifications for the currently authenticated user.
+    Supports ?is_read=false to filter to unread only.
+    """
+    serializer_class = UserNotificationSerializer
+
+    def get_queryset(self):
+        qs = UserNotification.objects.filter(recipient=self.request.user)
+        is_read_param = self.request.query_params.get('is_read')
+        if is_read_param is not None:
+            # Accept 'false'/'true' (string) from query params
+            is_read = is_read_param.lower() != 'false'
+            qs = qs.filter(is_read=is_read)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            "count": queryset.count(),
+            "results": serializer.data
+        })
+
+
+class UserNotificationMarkReadView(APIView):
+    """PATCH /api/notifications/<id>/read — mark a single notification as read."""
+
+    def patch(self, request, pk):
+        try:
+            notif = UserNotification.objects.get(pk=pk, recipient=request.user)
+        except UserNotification.DoesNotExist:
+            return Response({"error": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        notif.is_read = True
+        notif.save(update_fields=['is_read'])
+        return Response({"message": "Notification marked as read.", "id": notif.id})
+
+
+class UserNotificationMarkAllReadView(APIView):
+    """POST /api/notifications/mark-all-read — mark all of the user's notifications as read."""
+
+    def post(self, request):
+        updated = UserNotification.objects.filter(
+            recipient=request.user, is_read=False
+        ).update(is_read=True)
+        return Response({"message": f"{updated} notification(s) marked as read."})

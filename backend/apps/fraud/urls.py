@@ -5,9 +5,9 @@ from .views import (
 )
 
 urlpatterns = [
-    path('check/', TriggerFraudCheckView.as_view()),
-    path('alerts/', FraudAlertListView.as_view()),
-    path('alerts/<int:pk>/', FraudAlertDetailView.as_view()),
-    path('alerts/<int:alert_id>/investigate/', OpenInvestigationView.as_view()),
-    path('alerts/<int:alert_id>/close/', CloseAlertView.as_view()),
+    path('check', TriggerFraudCheckView.as_view()),
+    path('alerts', FraudAlertListView.as_view()),
+    path('alerts/<int:pk>', FraudAlertDetailView.as_view()),
+    path('alerts/<int:alert_id>/investigate', OpenInvestigationView.as_view()),
+    path('alerts/<int:alert_id>/close', CloseAlertView.as_view()),
 ]

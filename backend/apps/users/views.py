@@ -183,7 +183,7 @@ class ResetPasswordView(APIView):
 
 
 class UserListCreateView(generics.ListCreateAPIView):
-    queryset = User.objects.all().order_by('-created_at')
+    queryset = User.objects.filter(is_active=True).order_by('-created_at')
     permission_classes = [IsAdmin]
     filter_backends = [filters.SearchFilter]
     search_fields = ['username', 'first_name', 'last_name', 'email']
@@ -275,3 +275,35 @@ class UserActivityLogView(generics.ListAPIView):
         if user_id:
             return UserActivityLog.objects.filter(user_id=user_id)
         return UserActivityLog.objects.all()
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from .serializers import ChangePasswordSerializer
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+
+        request.user.set_password(serializer.validated_data['new_password'])
+        request.user.save()
+
+        # Log password change to activity log
+        UserActivityLog.objects.create(
+            user=request.user,
+            action='PASSWORD_CHANGE',
+            ip_address=get_client_ip(request),
+            detail="Password changed successfully"
+        )
+
+        # Log to audit trail
+        log_action(
+            user=request.user,
+            action_type='UPDATE',
+            model_name='User',
+            object_id=str(request.user.id),
+            description=f"User {request.user.username} changed their password",
+            request=request
+        )
+
+        return Response({"message": "Password changed successfully."})

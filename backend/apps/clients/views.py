@@ -129,8 +129,17 @@ class A1ValidateClientView(APIView):
     permission_classes = [IsLoanOfficer]
 
     def post(self, request, client_id):
-        client = Client.objects.get(pk=client_id)
-        checklist = client.kyc_checklist
+        try:
+            client = Client.objects.get(pk=client_id)
+        except Client.DoesNotExist:
+            return Response({"error": "Client not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Auto-create checklist if missing (e.g. seeded clients without one)
+        checklist, _ = KYCChecklist.objects.get_or_create(client=client)
+
+        # Check uploaded documents for fallback rule checks
+        has_id_doc = client.documents.filter(document_type__in=['NIC', 'PASSPORT', 'DRIVING_LICENSE', 'PHOTO', 'NIC_FRONT', 'NIC_BACK']).exists()
+        has_income_doc = client.documents.filter(document_type__in=['BANK_STATEMENT', 'PROOF_OF_INCOME']).exists()
 
         # Build input payload for A1
         payload = {
@@ -152,6 +161,8 @@ class A1ValidateClientView(APIView):
                 "address_verified": checklist.address_verified,
                 "income_verified": checklist.income_verified,
                 "aml_check_done": checklist.aml_check_done,
+                "id_document_uploaded": has_id_doc,
+                "income_document_uploaded": has_income_doc,
             }
         }
 

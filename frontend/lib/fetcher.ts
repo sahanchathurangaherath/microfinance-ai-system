@@ -1,24 +1,11 @@
-import Cookies from 'js-cookie';
+import api from "./api";
 
 /**
- * SWR fetcher that attaches the access token from cookies.
+ * SWR fetcher that uses the shared Axios instance.
  */
 export async function fetcher<T = unknown>(url: string): Promise<T> {
-  const accessToken = Cookies.get('access_token');
-
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-  });
-
-  if (!res.ok) {
-    const error = new Error(`API error: ${res.status} ${res.statusText}`);
-    throw error;
-  }
-
-  return res.json();
+  const response = await api.get(url);
+  return response.data as T;
 }
 
 /**

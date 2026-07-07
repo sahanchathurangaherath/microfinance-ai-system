@@ -279,6 +279,64 @@ class DashboardService:
         }
 
     @staticmethod
+    def get_loan_officer_dashboard(user):
+        """Personalised dashboard for a Loan Officer."""
+        from apps.loans.models import LoanApplication
+        from apps.clients.models import Client
+
+        today = date.today()
+        this_month_start = today.replace(day=1)
+
+        # Applications created by this officer
+        my_apps = LoanApplication.objects.filter(created_by=user)
+        total_apps = my_apps.count()
+
+        by_status = dict(
+            my_apps.values('status')
+            .annotate(count=Count('id'))
+            .values_list('status', 'count')
+        )
+
+        # Clients registered by this officer
+        clients_total = Client.objects.filter(registered_by=user).count()
+        clients_this_month = Client.objects.filter(
+            registered_by=user,
+            created_at__date__gte=this_month_start
+        ).count()
+
+        approved_this_month = my_apps.filter(
+            status='APPROVED',
+            updated_at__date__gte=this_month_start
+        ).count()
+        rejected_this_month = my_apps.filter(
+            status='REJECTED',
+            updated_at__date__gte=this_month_start
+        ).count()
+
+        return {
+            "generated_at": today.isoformat(),
+            "clients": {
+                "active": clients_total,
+                "this_month": clients_this_month,
+            },
+            "loans": {
+                "active": by_status.get('APPROVED', 0) + by_status.get('DISBURSED', 0),
+                "total_outstanding": "0",  # officer-level not tracked separately
+            },
+            "default_rate": {
+                "default_rate_percent": 0,
+            },
+            "applications": {
+                "total": total_apps,
+                "draft": by_status.get('DRAFT', 0),
+                "submitted": by_status.get('SUBMITTED', 0),
+                "approved_this_month": approved_this_month,
+                "rejected_this_month": rejected_this_month,
+                "by_status": by_status,
+            },
+        }
+
+    @staticmethod
     def get_staff_activity(days=7):
         """Staff login and action counts for Admin."""
         from apps.users.models import User, UserActivityLog

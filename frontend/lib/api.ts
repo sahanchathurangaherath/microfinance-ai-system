@@ -2,16 +2,21 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000/api/",
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "/api",
   headers: { "Content-Type": "application/json" },
 });
 
-// Request interceptor: attach JWT
+// Request interceptor: attach JWT and normalize relative URLs
 api.interceptors.request.use((config) => {
   const token = Cookies.get("access_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  if (config.url && config.url.startsWith("/") && !config.url.startsWith("//")) {
+    config.url = config.url.slice(1);
+  }
+
   return config;
 });
 
@@ -52,7 +57,7 @@ api.interceptors.response.use(
         const refreshToken = Cookies.get("refresh_token");
         if (!refreshToken) throw new Error("No refresh token");
 
-        const { data } = await axios.post("/api/auth/token/refresh/", {
+        const { data } = await axios.post("/api/auth/refresh/", {
           refresh: refreshToken,
         });
 
@@ -105,7 +110,7 @@ export const usersAPI = {
   updateUser: (id: number, data: Record<string, unknown>) =>
     api.patch(`users/${id}/`, data),
   deleteUser: (id: number) => api.delete(`users/${id}/`),
-  getRoles: () => api.get("auth/roles/"),
+  getRoles: () => api.get("users/roles/"),
   getUserActivity: (userId: number) =>
     api.get(`users/${userId}/activity/`),
 };
@@ -132,7 +137,7 @@ export const loansAPI = {
     api.patch(`loans/applications/${id}/`, data),
   getProducts: () => api.get("loans/products/"),
   getStatusHistory: (id: number) =>
-    api.get(`loans/applications/${id}/status-history/`),
+    api.get(`loans/applications/${id}/status/`),
   submitCashflow: (id: number, data: Record<string, unknown>) =>
     api.post(`loans/applications/${id}/cashflow/`, data),
   uploadDocument: (id: number, formData: FormData) =>
@@ -144,14 +149,18 @@ export const loansAPI = {
 // ─── Approvals API 
 export const approvalsAPI = {
   getApprovals: (params?: Record<string, string>) =>
-    api.get("approvals/", { params }),
-  getApproval: (id: number) => api.get(`approvals/${id}/`),
-  riskDecision: (id: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${id}/risk-decision/`, data),
-  managerDecision: (id: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${id}/manager-decision/`, data),
-  committeeDecision: (id: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${id}/committee-vote/`, data),
+    api.get("approvals/pending/", { params }),
+  getRiskReview: () => api.get("approvals/pending/risk-review/"),
+  getManagerReview: () => api.get("approvals/pending/manager-review/"),
+  getCommitteeReview: () => api.get("approvals/pending/committee/"),
+  riskDecision: (loanId: number, data: Record<string, unknown>) =>
+    api.post(`approvals/${loanId}/risk-decision/`, data),
+  managerDecision: (loanId: number, data: Record<string, unknown>) =>
+    api.post(`approvals/${loanId}/manager-decision/`, data),
+  committeeDecision: (loanId: number, data: Record<string, unknown>) =>
+    api.post(`approvals/${loanId}/committee-vote/`, data),
+  getHistory: (loanId: number) =>
+    api.get(`approvals/${loanId}/history/`),
 };
 
 // ─── Repayments API ──────────────────────────────────────
@@ -159,15 +168,28 @@ export const repaymentsAPI = {
   getRepayments: (params?: Record<string, string>) =>
     api.get("repayments/", { params }),
   recordPayment: (data: Record<string, unknown>) =>
-    api.post("repayments/", data),
+    api.post("repayments/payments/", data),
 };
 
 // ─── Collections API ─────────────────────────────────────
 export const collectionsAPI = {
   getCollections: (params?: Record<string, string>) =>
     api.get("collections/overdue/", { params }),
-  logAction: (data: Record<string, unknown>) =>
-    api.post("collections/actions/", data),
+  
+  assignCase: (caseId: number, data: Record<string, unknown>) =>
+    api.post(`collections/${caseId}/assign/`, data),
+  
+  logContact: (caseId: number, data: Record<string, unknown>) =>
+    api.post(`collections/${caseId}/contact/`, data),
+  
+  recordPromiseToPay: (caseId: number, data: Record<string, unknown>) =>
+    api.post(`collections/${caseId}/promise-to-pay/`, data),
+  
+  escalateCase: (caseId: number, data: Record<string, unknown>) =>
+    api.post(`collections/${caseId}/escalate/`, data),
+  
+  resolveCase: (caseId: number, data: Record<string, unknown>) =>
+    api.post(`collections/${caseId}/resolve/`, data),
 };
 
 // ─── Fraud API ───────────────────────────────────────────
@@ -181,7 +203,7 @@ export const fraudAPI = {
 // ─── Reports API ─────────────────────────────────────────
 export const reportsAPI = {
   getDashboard: () => api.get("reports/dashboard/"),
-  getPortfolio: () => api.get("reports/portfolio/"),
+  getPortfolio: () => api.get("reports/dashboard/portfolio/"),
   exportCSV: (reportType: string) =>
     api.get("reports/export/", { params: { type: reportType, export_format: "csv" }, responseType: "blob" }),
   exportJSON: (reportType: string) =>
@@ -191,16 +213,16 @@ export const reportsAPI = {
 // ─── Audit API ───────────────────────────────────────────
 export const auditAPI = {
   getLogs: (params?: Record<string, string>) =>
-    api.get("audit/", { params }),
+    api.get("audit/logs/", { params }),
   getLoginAttempts: (params?: Record<string, string>) =>
     api.get("audit/login-attempts/", { params }),
   getPermissionChanges: (params?: Record<string, string>) =>
-    api.get("audit/permission-changes/", { params }),
+    api.get("audit/decisions/", { params }),
   getAgentConfigs: () =>
     api.get("audit/agent-config/"),
-  updateAgentConfig: (agentId: string, data: Record<string, any>) =>
+  updateAgentConfig: (agentId: string, data: Record<string, unknown>) =>
     api.patch(`audit/agent-config/${agentId}/`, data),
-  getAgentPerformance: (agentId: string, params?: Record<string, any>) =>
+  getAgentPerformance: (agentId: string, params?: Record<string, unknown>) =>
     api.get(`audit/agent-performance/${agentId}/`, { params }),
   getAgentConfigChangeLogs: () =>
     api.get("audit/agent-config-logs/"),
@@ -216,7 +238,7 @@ export const auditAPI = {
     api.post(`audit/system/incidents/${id}/resolve/`),
   getManualReviewQueue: () =>
     api.get("audit/system/manual-review/"),
-  submitManualReview: (caseId: number, data: Record<string, any>) =>
+  submitManualReview: (caseId: number, data: Record<string, unknown>) =>
     api.post(`audit/system/manual-review/${caseId}/submit/`, data),
   retryAIRequest: (caseId: number) =>
     api.post(`audit/system/manual-review/${caseId}/retry/`),
@@ -228,14 +250,37 @@ export const notificationsAPI = {
     api.get("notifications/", { params }),
   markRead: (id: number) => api.patch(`notifications/${id}/read/`),
   markAllRead: () => api.post("notifications/mark-all-read/"),
+  // Staff workflow endpoints (SMS/Email to clients)
+  getQueue: () => api.get("notifications/queue/"),
+  getPendingDrafts: () => api.get("notifications/pending/"),
+  approveDraft: (id: number) => api.post(`notifications/${id}/approve/`),
+  rejectDraft: (id: number, data: { reason: string }) => api.post(`notifications/${id}/reject/`, data),
+  sendDraft: (id: number) => api.post(`notifications/${id}/send/`),
 };
 
 // ─── KYC API ─────────────────────────────────────────────
 export const kycAPI = {
+  // Get all clients (KYC records)
   getKYC: (params?: Record<string, string>) =>
-    api.get("kyc/", { params }),
-  verifyKYC: (id: number, data: Record<string, unknown>) =>
-    api.patch(`kyc/${id}/verify/`, data),
+    api.get("clients/", { params }),
+  
+  // Get specific client's KYC data
+  getClientKYC: (clientId: number) =>
+    api.get(`clients/${clientId}/kyc/`),
+  
+  // Update/Verify KYC checklist
+  verifyKYC: (clientId: number, data: Record<string, unknown>) =>
+    api.patch(`clients/${clientId}/kyc/`, data),
+  
+  // Submit for AI validation
+  submitForValidation: (clientId: number) =>
+    api.post(`clients/${clientId}/kyc/submit/`, {}),
+  
+  // Upload KYC documents
+  uploadDocument: (clientId: number, formData: FormData) =>
+    api.post(`clients/${clientId}/documents/`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 // SWR fetcher

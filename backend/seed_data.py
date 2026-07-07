@@ -424,9 +424,13 @@ def seed_database():
 
     staff_users = {}
     staff_by_branch = {}
+    # Track multiple officers per role per branch using lists
+    staff_by_branch_multi = {}  # branch -> role -> [users]
+
     for branch_name in BRANCHES:
         branch_prefix = branch_name.split()[0].lower()
         staff_by_branch[branch_name] = {}
+        staff_by_branch_multi[branch_name] = {}
         for username, first, last, role, phone in staff_data:
             user = User.objects.create_user(
                 username=f"{branch_prefix}.{username}",
@@ -439,23 +443,40 @@ def seed_database():
                 branch=branch_name,
                 is_active=True
             )
-            staff_users[role] = user # keep last for fallback
+            staff_users[role] = user  # keep last for fallback
+            # For roles with multiple people (e.g. two loan_officers), store last as primary
+            # but track all in the multi map
             staff_by_branch[branch_name][role] = user
+            if role not in staff_by_branch_multi[branch_name]:
+                staff_by_branch_multi[branch_name][role] = []
+            staff_by_branch_multi[branch_name][role].append(user)
         print(f"     ✓ Staff created for {branch_name}")
 
     loan_officer = staff_users['loan_officer']
     branch_manager = staff_users['branch_manager']
     risk_analyst = staff_users.get('risk_analyst')
     finance = staff_users['finance_staff']
-    
-    # Helper to get staff by city
+
+    # Counters to alternate between multiple officers per branch
+    _officer_counters = {}
+
+    # Helper to get staff by city — alternates between officers so both get data
     def get_staff_for_city(city):
         if city in ["Panadura", "Horana", "Matugama"]: b = "Kalutara Branch"
         elif city in ["Colombo 03", "Maharagama", "Moratuwa"]: b = "Colombo Branch"
         elif city in ["Kurunegala", "Kuliyapitiya", "Narammala"]: b = "Kurunegala Branch"
         elif city in ["Kandy", "Peradeniya", "Gampola"]: b = "Kandy Branch"
         else: b = "Kalutara Branch"
-        return staff_by_branch[b]
+
+        branch_staff = dict(staff_by_branch[b])  # copy with single fallback
+        # For loan_officer, alternate between all officers so both accumulate data
+        officers = staff_by_branch_multi[b].get('loan_officer', [])
+        if officers:
+            key = b + "_loan_officer"
+            idx = _officer_counters.get(key, 0)
+            branch_staff['loan_officer'] = officers[idx % len(officers)]
+            _officer_counters[key] = idx + 1
+        return branch_staff
 
 
     # ── 7.3 Create Loan Products ─────────────────────────────

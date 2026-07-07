@@ -9,6 +9,7 @@ import {
   LayoutDashboard, Users, FileText, CheckCircle, CreditCard,
   TrendingDown, AlertTriangle, BarChart2, Shield, UserCog,
   Bell, User, ChevronLeft, ChevronRight, X, Building2, Brain,
+  MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -108,6 +109,12 @@ export default function Sidebar({
           href: "/reports",
           icon: <BarChart2 className="h-5 w-5" />,
           permission: "reports:read",
+        },
+        {
+          label: "Communication Queue",
+          href: "/notifications-queue",
+          icon: <MessageSquare className="h-5 w-5" />,
+          permission: "notifications:read",
         },
       ],
     },

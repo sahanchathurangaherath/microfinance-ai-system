@@ -103,10 +103,10 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'TRAILING_SLASH': False,  # Don't require trailing slashes on API endpoints
 }
 
-# Disable automatic trailing slash append for API requests
-# This prevents Django from trying to redirect POST requests to add trailing slashes
+# Disable automatic trailing slash append to prevent POST redirect errors
 APPEND_SLASH = False
 
 SIMPLE_JWT = {

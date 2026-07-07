@@ -23,8 +23,8 @@ export default function RepaymentsPage() {
 
   const dueAmount = repayments.reduce((sum: number, r: Record<string,unknown>) => sum + Number(r.total_amount_due || 0), 0);
   const collectedAmount = repayments.reduce((sum: number, r: Record<string,unknown>) => sum + Number(r.amount_paid || 0), 0);
-  const overdueCount = repayments.filter((r: Record<string,unknown>) => r.payment_status === "OVERDUE" || r.status === "OVERDUE").length;
-  const onTimeCount = repayments.filter((r: Record<string,unknown>) => r.payment_status === "PAID" || r.status === "PAID").length;
+  const overdueCount = repayments.filter((r: Record<string,unknown>) => r.status === "OVERDUE").length;
+  const onTimeCount = repayments.filter((r: Record<string,unknown>) => r.status === "PAID").length;
   const paidRatio = repayments.length > 0 ? Math.round((onTimeCount / repayments.length) * 100) + "%" : "0%";
 
   const columns = [
@@ -34,7 +34,7 @@ export default function RepaymentsPage() {
     { id: "amount_due", header: "Due Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{formatCurrency(Number(r.total_amount_due || 0))}</span> },
     { id: "amount_paid", header: "Paid", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium text-emerald-600">{formatCurrency(Number(r.amount_paid || 0))}</span> },
     { id: "due_date", header: "Due Date", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{formatDate(String(r.due_date || new Date()))}</span> },
-    { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.payment_status || r.status || "PENDING")} /> },
+    { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.status || "PENDING")} /> },
   ];
 
   const handleTriggerA4 = async () => {
