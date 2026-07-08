@@ -135,6 +135,7 @@ class ExportReportView(APIView):
         'risk_distribution': DashboardService.get_risk_distribution,
         'agent_performance': DashboardService.get_agent_performance,
         'fraud': DashboardService.get_fraud_report,
+        'loans': ExportService.get_loans,
     }
 
     EXPORT_MAP = {
@@ -145,6 +146,7 @@ class ExportReportView(APIView):
         'risk_distribution': ExportService.get_risk_distribution,
         'agent_performance': ExportService.get_agent_performance,
         'fraud': ExportService.get_fraud_report,
+        'loans': ExportService.get_loans,
     }
 
     def get(self, request):
@@ -155,9 +157,9 @@ class ExportReportView(APIView):
 
         # Enforce role-based scoping on report types
         role_allowed_reports = {
-            'admin': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'fraud'],
-            'branch_manager': ['portfolio', 'default_rate', 'arrears', 'disbursement'],
-            'loan_officer': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance'],
+            'admin': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'fraud', 'loans'],
+            'branch_manager': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'loans'],
+            'loan_officer': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'loans'],
             'risk_analyst': ['risk_distribution'],
             'collections_officer': ['arrears'],
             'finance_staff': ['disbursement'],

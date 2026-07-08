@@ -421,3 +421,11 @@ class ExportService:
             'id', 'alert_type', 'severity', 'status', 'fraud_risk_score', 
             'triggered_at'
         ))
+
+    @staticmethod
+    def get_loans():
+        from apps.loans.models import LoanApplication
+        return list(LoanApplication.objects.values(
+            'id', 'application_number', 'client__client_number', 'client__first_name', 'client__last_name',
+            'requested_amount', 'requested_duration_months', 'status', 'created_at'
+        ))
