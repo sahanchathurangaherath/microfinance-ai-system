@@ -157,6 +157,7 @@ class ExportReportView(APIView):
         role_allowed_reports = {
             'admin': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'fraud'],
             'branch_manager': ['portfolio', 'default_rate', 'arrears', 'disbursement'],
+            'loan_officer': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance'],
             'risk_analyst': ['risk_distribution'],
             'collections_officer': ['arrears'],
             'finance_staff': ['disbursement'],

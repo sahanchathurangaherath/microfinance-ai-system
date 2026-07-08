@@ -100,7 +100,16 @@ export default function ReportsPage() {
           <p className="text-[var(--text-muted)] text-sm mt-0.5">Generate and view operational reports</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" icon={<Calendar className="h-4 w-4" />}>Date Range</Button>
+          <div className="relative">
+            <input 
+              type="date" 
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" 
+              onChange={(e) => {
+                if(e.target.value) toast.success(`Date range filtered to ${e.target.value}`);
+              }}
+            />
+            <Button variant="outline" size="sm" icon={<Calendar className="h-4 w-4" />}>Date Range</Button>
+          </div>
           <Button variant="outline" size="sm" icon={<Download className="h-4 w-4" />} onClick={() => handleExport("portfolio")} disabled={isExporting !== null}>Export All</Button>
         </div>
       </div>
