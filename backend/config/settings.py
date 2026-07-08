@@ -167,3 +167,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Rate limiting configuration (for django-ratelimit)
 RATELIMIT_ENABLE = True
+
+# Cache configuration for ratelimit
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}

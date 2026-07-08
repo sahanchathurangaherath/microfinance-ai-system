@@ -17,6 +17,9 @@ api.interceptors.request.use((config) => {
     config.url = config.url.slice(1);
   }
 
+  // Bust 308 Permanent Redirect cache loops
+  config.params = { ...config.params, _cb: Date.now() };
+
   return config;
 });
 
@@ -57,7 +60,7 @@ api.interceptors.response.use(
         const refreshToken = Cookies.get("refresh_token");
         if (!refreshToken) throw new Error("No refresh token");
 
-        const { data } = await axios.post("/api/auth/refresh/", {
+        const { data } = await axios.post("/api/auth/refresh", {
           refresh: refreshToken,
         });
 
@@ -85,63 +88,63 @@ api.interceptors.response.use(
 // ─── Auth API ────────────────────────────────────────────
 export const authAPI = {
   login: (username: string, password: string) =>
-    api.post("auth/login/", { username, password }),
-  logout: (refresh: string) => api.post("auth/logout/", { refresh }),
-  getCurrentUser: () => api.get("auth/me/"),
-  forgotPassword: (email: string) => api.post("auth/forgot-password/", { email }),
+    api.post("auth/login", { username, password }),
+  logout: (refresh: string) => api.post("auth/logout", { refresh }),
+  getCurrentUser: () => api.get("auth/me"),
+  forgotPassword: (email: string) => api.post("auth/forgot-password", { email }),
   resetPassword: (data: {
     uid: string;
     token: string;
     new_password: string;
     confirm_password: string;
-  }) => api.post("auth/reset-password/", data),
+  }) => api.post("auth/reset-password", data),
   changePassword: (data: {
     old_password: string;
     new_password: string;
-  }) => api.post("auth/change-password/", data),
+  }) => api.post("auth/change-password", data),
 };
 
 // ─── Users API ───────────────────────────────────────────
 export const usersAPI = {
   getUsers: (params?: Record<string, string>) =>
-    api.get("users/", { params }),
-  getUser: (id: number) => api.get(`users/${id}/`),
-  createUser: (data: Record<string, unknown>) => api.post("users/", data),
+    api.get("users", { params }),
+  getUser: (id: number) => api.get(`users/${id}`),
+  createUser: (data: Record<string, unknown>) => api.post("users", data),
   updateUser: (id: number, data: Record<string, unknown>) =>
-    api.patch(`users/${id}/`, data),
-  deleteUser: (id: number) => api.delete(`users/${id}/`),
-  getRoles: () => api.get("users/roles/"),
+    api.patch(`users/${id}`, data),
+  deleteUser: (id: number) => api.delete(`users/${id}`),
+  getRoles: () => api.get("users/roles"),
   getUserActivity: (userId: number) =>
-    api.get(`users/${userId}/activity/`),
+    api.get(`users/${userId}/activity`),
 };
 
 // ─── Clients API ─────────────────────────────────────────
 export const clientsAPI = {
   getClients: (params?: Record<string, string>) =>
-    api.get("clients/", { params }),
-  getClient: (id: number) => api.get(`clients/${id}/`),
+    api.get("clients", { params }),
+  getClient: (id: number) => api.get(`clients/${id}`),
   createClient: (data: Record<string, unknown>) =>
-    api.post("clients/", data),
+    api.post("clients", data),
   updateClient: (id: number, data: Record<string, unknown>) =>
-    api.patch(`clients/${id}/`, data),
+    api.patch(`clients/${id}`, data),
 };
 
 // ─── Loans API ───────────────────────────────────────────
 export const loansAPI = {
   getApplications: (params?: Record<string, string>) =>
-    api.get("loans/applications/", { params }),
-  getApplication: (id: number) => api.get(`loans/applications/${id}/`),
+    api.get("loans/applications", { params }),
+  getApplication: (id: number) => api.get(`loans/applications/${id}`),
   createApplication: (data: Record<string, unknown>) =>
-    api.post("loans/applications/", data),
+    api.post("loans/applications", data),
   updateApplication: (id: number, data: Record<string, unknown>) =>
-    api.patch(`loans/applications/${id}/`, data),
-  getProducts: () => api.get("loans/products/"),
+    api.patch(`loans/applications/${id}`, data),
+  getProducts: () => api.get("loans/products"),
   getStatusHistory: (id: number) =>
-    api.get(`loans/applications/${id}/status/`),
+    api.get(`loans/applications/${id}/status`),
   submitCashflow: (id: number, data: Record<string, unknown>) =>
-    api.post(`loans/applications/${id}/cashflow/`, data),
+    api.post(`loans/applications/${id}/cashflow`, data),
   uploadDocument: (id: number, formData: FormData) =>
-    api.post(`loans/applications/${id}/documents/`, formData, {
+    api.post(`loans/applications/${id}/documents`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 };
@@ -149,136 +152,136 @@ export const loansAPI = {
 // ─── Approvals API 
 export const approvalsAPI = {
   getApprovals: (params?: Record<string, string>) =>
-    api.get("approvals/pending/", { params }),
-  getRiskReview: () => api.get("approvals/pending/risk-review/"),
-  getManagerReview: () => api.get("approvals/pending/manager-review/"),
-  getCommitteeReview: () => api.get("approvals/pending/committee/"),
+    api.get("approvals/pending", { params }),
+  getRiskReview: () => api.get("approvals/pending/risk-review"),
+  getManagerReview: () => api.get("approvals/pending/manager-review"),
+  getCommitteeReview: () => api.get("approvals/pending/committee"),
   riskDecision: (loanId: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${loanId}/risk-decision/`, data),
+    api.post(`approvals/${loanId}/risk-decision`, data),
   managerDecision: (loanId: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${loanId}/manager-decision/`, data),
+    api.post(`approvals/${loanId}/manager-decision`, data),
   committeeDecision: (loanId: number, data: Record<string, unknown>) =>
-    api.post(`approvals/${loanId}/committee-vote/`, data),
+    api.post(`approvals/${loanId}/committee-vote`, data),
   getHistory: (loanId: number) =>
-    api.get(`approvals/${loanId}/history/`),
+    api.get(`approvals/${loanId}/history`),
 };
 
 // ─── Repayments API ──────────────────────────────────────
 export const repaymentsAPI = {
   getRepayments: (params?: Record<string, string>) =>
-    api.get("repayments/", { params }),
+    api.get("repayments", { params }),
   recordPayment: (data: Record<string, unknown>) =>
-    api.post("repayments/payments/", data),
+    api.post("repayments/payments", data),
 };
 
 // ─── Collections API ─────────────────────────────────────
 export const collectionsAPI = {
   getCollections: (params?: Record<string, string>) =>
-    api.get("collections/overdue/", { params }),
+    api.get("collections/overdue", { params }),
   
   assignCase: (caseId: number, data: Record<string, unknown>) =>
-    api.post(`collections/${caseId}/assign/`, data),
+    api.post(`collections/${caseId}/assign`, data),
   
   logContact: (caseId: number, data: Record<string, unknown>) =>
-    api.post(`collections/${caseId}/contact/`, data),
+    api.post(`collections/${caseId}/contact`, data),
   
   recordPromiseToPay: (caseId: number, data: Record<string, unknown>) =>
-    api.post(`collections/${caseId}/promise-to-pay/`, data),
+    api.post(`collections/${caseId}/promise-to-pay`, data),
   
   escalateCase: (caseId: number, data: Record<string, unknown>) =>
-    api.post(`collections/${caseId}/escalate/`, data),
+    api.post(`collections/${caseId}/escalate`, data),
   
   resolveCase: (caseId: number, data: Record<string, unknown>) =>
-    api.post(`collections/${caseId}/resolve/`, data),
+    api.post(`collections/${caseId}/resolve`, data),
 };
 
 // ─── Fraud API ───────────────────────────────────────────
 export const fraudAPI = {
   getAlerts: (params?: Record<string, string>) =>
-    api.get("fraud/alerts/", { params }),
+    api.get("fraud/alerts", { params }),
   resolveAlert: (id: number, data: Record<string, unknown>) =>
-    api.patch(`fraud/alerts/${id}/close/`, data),
+    api.patch(`fraud/alerts/${id}/close`, data),
 };
 
 // ─── Reports API ─────────────────────────────────────────
 export const reportsAPI = {
-  getDashboard: () => api.get("reports/dashboard/"),
-  getPortfolio: () => api.get("reports/dashboard/portfolio/"),
+  getDashboard: () => api.get("reports/dashboard"),
+  getPortfolio: () => api.get("reports/dashboard/portfolio"),
   exportCSV: (reportType: string) =>
-    api.get("reports/export/", { params: { type: reportType, export_format: "csv" }, responseType: "blob" }),
+    api.get("reports/export", { params: { type: reportType, export_format: "csv" }, responseType: "blob" }),
   exportJSON: (reportType: string) =>
-    api.get("reports/export/", { params: { type: reportType, export_format: "export_json" } }),
+    api.get("reports/export", { params: { type: reportType, export_format: "export_json" } }),
 };
 
 // ─── Audit API ───────────────────────────────────────────
 export const auditAPI = {
   getLogs: (params?: Record<string, string>) =>
-    api.get("audit/logs/", { params }),
+    api.get("audit/logs", { params }),
   getLoginAttempts: (params?: Record<string, string>) =>
-    api.get("audit/login-attempts/", { params }),
+    api.get("audit/login-attempts", { params }),
   getPermissionChanges: (params?: Record<string, string>) =>
-    api.get("audit/decisions/", { params }),
+    api.get("audit/decisions", { params }),
   getAgentConfigs: () =>
-    api.get("audit/agent-config/"),
+    api.get("audit/agent-config"),
   updateAgentConfig: (agentId: string, data: Record<string, unknown>) =>
-    api.patch(`audit/agent-config/${agentId}/`, data),
+    api.patch(`audit/agent-config/${agentId}`, data),
   getAgentPerformance: (agentId: string, params?: Record<string, unknown>) =>
-    api.get(`audit/agent-performance/${agentId}/`, { params }),
+    api.get(`audit/agent-performance/${agentId}`, { params }),
   getAgentConfigChangeLogs: () =>
-    api.get("audit/agent-config-logs/"),
+    api.get("audit/agent-config-logs"),
   getAIHealth: () =>
-    api.get("audit/ai/health/"),
+    api.get("audit/ai/health"),
   enableManualMode: () =>
-    api.post("audit/system/manual-mode/enable/"),
+    api.post("audit/system/manual-mode/enable"),
   disableManualMode: () =>
-    api.post("audit/system/manual-mode/disable/"),
+    api.post("audit/system/manual-mode/disable"),
   getIncidents: () =>
-    api.get("audit/system/incidents/"),
+    api.get("audit/system/incidents"),
   resolveIncident: (id: number) =>
-    api.post(`audit/system/incidents/${id}/resolve/`),
+    api.post(`audit/system/incidents/${id}/resolve`),
   getManualReviewQueue: () =>
-    api.get("audit/system/manual-review/"),
+    api.get("audit/system/manual-review"),
   submitManualReview: (caseId: number, data: Record<string, unknown>) =>
-    api.post(`audit/system/manual-review/${caseId}/submit/`, data),
+    api.post(`audit/system/manual-review/${caseId}/submit`, data),
   retryAIRequest: (caseId: number) =>
-    api.post(`audit/system/manual-review/${caseId}/retry/`),
+    api.post(`audit/system/manual-review/${caseId}/retry`),
 };
 
 // ─── Notifications API ───────────────────────────────────
 export const notificationsAPI = {
   getNotifications: (params?: Record<string, string>) =>
-    api.get("notifications/", { params }),
-  markRead: (id: number) => api.patch(`notifications/${id}/read/`),
-  markAllRead: () => api.post("notifications/mark-all-read/"),
+    api.get("notifications", { params }),
+  markRead: (id: number) => api.patch(`notifications/${id}/read`),
+  markAllRead: () => api.post("notifications/mark-all-read"),
   // Staff workflow endpoints (SMS/Email to clients)
-  getQueue: () => api.get("notifications/queue/"),
-  getPendingDrafts: () => api.get("notifications/pending/"),
-  approveDraft: (id: number) => api.post(`notifications/${id}/approve/`),
-  rejectDraft: (id: number, data: { reason: string }) => api.post(`notifications/${id}/reject/`, data),
-  sendDraft: (id: number) => api.post(`notifications/${id}/send/`),
+  getQueue: () => api.get("notifications/queue"),
+  getPendingDrafts: () => api.get("notifications/pending"),
+  approveDraft: (id: number) => api.post(`notifications/${id}/approve`),
+  rejectDraft: (id: number, data: { reason: string }) => api.post(`notifications/${id}/reject`, data),
+  sendDraft: (id: number) => api.post(`notifications/${id}/send`),
 };
 
 // ─── KYC API ─────────────────────────────────────────────
 export const kycAPI = {
   // Get all clients (KYC records)
   getKYC: (params?: Record<string, string>) =>
-    api.get("clients/", { params }),
+    api.get("clients", { params }),
   
   // Get specific client's KYC data
   getClientKYC: (clientId: number) =>
-    api.get(`clients/${clientId}/kyc/`),
+    api.get(`clients/${clientId}/kyc`),
   
   // Update/Verify KYC checklist
   verifyKYC: (clientId: number, data: Record<string, unknown>) =>
-    api.patch(`clients/${clientId}/kyc/`, data),
+    api.patch(`clients/${clientId}/kyc`, data),
   
   // Submit for AI validation
   submitForValidation: (clientId: number) =>
-    api.post(`clients/${clientId}/kyc/submit/`, {}),
+    api.post(`clients/${clientId}/kyc/submit`, {}),
   
   // Upload KYC documents
   uploadDocument: (clientId: number, formData: FormData) =>
-    api.post(`clients/${clientId}/documents/`, formData, {
+    api.post(`clients/${clientId}/documents`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 };
