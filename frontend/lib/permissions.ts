@@ -59,6 +59,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     "collections:read",
     "repayments:read",
     "notifications:read",
+    "communication_queue:read",
     "profile:read",
   ],
   finance_staff: [

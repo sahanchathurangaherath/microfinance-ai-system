@@ -114,7 +114,7 @@ export default function Sidebar({
           label: "Communication Queue",
           href: "/notifications-queue",
           icon: <MessageSquare className="h-5 w-5" />,
-          permission: "notifications:read",
+          permission: "communication_queue:read",
         },
       ],
     },
@@ -131,12 +131,13 @@ export default function Sidebar({
           label: "AI Control Panel",
           href: "/admin/ai-control-panel",
           icon: <Brain className="h-5 w-5" />,
-          permission: "audit:read",
+          permission: "ai_control:read",
         },
         {
           label: "User Management",
           href: "/users",
           icon: <UserCog className="h-5 w-5" />,
+          permission: "users:read",
         },
         {
           label: "Notifications",
@@ -161,20 +162,11 @@ export default function Sidebar({
   ];
 
   // Filter items based on role permissions
-  const filteredGroups = navGroups.map((group) => ({
+  const finalGroups = navGroups.map((group) => ({
     ...group,
     items: group.items.filter((item) =>
       !item.permission || can(item.permission)
     ),
-  })).filter((group) => group.items.length > 0);
-
-  // Hide User Management from non-admins
-  const finalGroups = filteredGroups.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => {
-      if (item.href === "/users" && role !== "admin") return false;
-      return true;
-    }),
   })).filter((group) => group.items.length > 0);
 
   const isActive = (href: string) =>

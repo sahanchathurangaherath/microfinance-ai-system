@@ -43,13 +43,13 @@ export default function NotificationsQueuePage() {
 
   // Fetch data
   const { data: pendingData, isLoading: pendingLoading, mutate: mutatePending } = useSWR<{ results: DraftMessage[] } | DraftMessage[]>(
-    "/notifications/pending/",
+    "/notifications/pending",
     fetcher
   );
   
   // SWR doesn't have custom views for outbox, so we query the main list with status filters
   const { data: allData, isLoading: allLoading, mutate: mutateAll } = useSWR<{ results: DraftMessage[] }>(
-    "/notifications/",
+    "/notifications/queue",
     fetcher
   );
 

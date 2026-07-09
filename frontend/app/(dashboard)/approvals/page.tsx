@@ -15,7 +15,7 @@ import Table from "@/components/ui/Table";
 export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const params = statusFilter ? `?status=${statusFilter}` : "";
-  const { data, error, isLoading, mutate } = useSWR(`/approvals/pending/${params}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(`/approvals/pending${params}`, fetcher);
   const approvals = data?.results || data || [];
 
   const columns = [

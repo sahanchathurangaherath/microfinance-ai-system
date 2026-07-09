@@ -12,7 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from .models import NotificationQueue, NotificationLog, NotificationTemplate, UserNotification
 from .serializers import NotificationQueueSerializer, NotificationLogSerializer, UserNotificationSerializer
 from apps.audit.utils import log_agent_action
-from apps.users.permissions import IsLoanOfficer, IsCollectionsOfficer
+from apps.users.permissions import IsLoanOfficer, IsCollectionsOfficer, IsComplianceOfficer
 
 
 class DraftNotificationView(APIView):
@@ -93,7 +93,7 @@ class DraftNotificationView(APIView):
 class PendingApprovalView(generics.ListAPIView):
     """Officer sees all notifications pending their approval."""
     serializer_class = NotificationQueueSerializer
-    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         return NotificationQueue.objects.filter(status='PENDING_APPROVAL')
@@ -109,7 +109,7 @@ class PendingApprovalView(generics.ListAPIView):
 
 class ApproveNotificationView(APIView):
     """Officer approves a draft message — marks it ready to send."""
-    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+    permission_classes = [IsComplianceOfficer]
 
     def post(self, request, notif_id):
         try:
@@ -136,7 +136,7 @@ class ApproveNotificationView(APIView):
 
 class RejectNotificationView(APIView):
     """Officer rejects a draft message with a reason."""
-    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+    permission_classes = [IsComplianceOfficer]
 
     def post(self, request, notif_id):
         try:
@@ -157,7 +157,7 @@ class SendNotificationView(APIView):
     Sends an APPROVED notification via SMS or Email.
   
     """
-    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+    permission_classes = [IsComplianceOfficer]
 
     def post(self, request, notif_id):
         try:
@@ -249,7 +249,7 @@ class SendNotificationView(APIView):
 
 class NotificationLogListView(generics.ListAPIView):
     serializer_class = NotificationLogSerializer
-    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         return NotificationLog.objects.all().select_related('notification')
@@ -258,7 +258,7 @@ class NotificationLogListView(generics.ListAPIView):
 class NotificationQueueListView(generics.ListAPIView):
     """List all notification queue items (pending, approved, rejected, sent, failed)."""
     serializer_class = NotificationQueueSerializer
-    permission_classes = [IsLoanOfficer | IsCollectionsOfficer]
+    permission_classes = [IsComplianceOfficer]
 
     def get_queryset(self):
         return NotificationQueue.objects.all().order_by('-created_at')

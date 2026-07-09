@@ -103,9 +103,9 @@ class RiskAnalystDecisionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if decision_value not in ["APPROVED", "ESCALATE", "MORE_INFO"]:
+        if decision_value not in ["APPROVED", "REJECTED", "ESCALATE", "MORE_INFO"]:
             return Response(
-                {"error": "Risk Analyst decision must be APPROVED, ESCALATE, or MORE_INFO."},
+                {"error": "Risk Analyst decision must be APPROVED, REJECTED, ESCALATE, or MORE_INFO."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -162,6 +162,13 @@ class RiskAnalystDecisionView(APIView):
             log_status_change(
                 application, application.status, 'MORE_INFO_REQUIRED',
                 request.user, f"Risk Analyst: {comments}"
+            )
+        elif decision_value == "REJECTED":
+            workflow.status = 'REJECTED'
+            workflow.save()
+            log_status_change(
+                application, application.status, 'REJECTED',
+                request.user, f"Risk Analyst Rejected: {comments}"
             )
         else:  # APPROVED or ESCALATE to manager
             workflow.status = 'PENDING_MANAGER_REVIEW'
