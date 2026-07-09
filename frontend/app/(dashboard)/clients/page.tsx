@@ -48,7 +48,7 @@ export default function ClientsPage() {
   if (status) params.set("status", status);
   params.set("page", String(page));
 
-  const { data, error, isLoading, mutate } = useSWR(`/clients/?${params.toString()}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(`/clients?${params.toString()}`, fetcher);
 
   const clients: Client[] = data?.results || data || [];
   const total = data?.count || clients.length;

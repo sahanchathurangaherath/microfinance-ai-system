@@ -300,11 +300,17 @@ class TriggerRiskAssessmentView(APIView):
                 "number_of_dependents": income.number_of_dependents if income else 0,
                 "data_quality_score": client.data_quality_score or 0,
                 "years_in_operation": business.years_in_operation if business else 0,
+                "business_type": business.business_type if business else "unknown",
+                "business_description": business.business_description if business else "",
             },
             "loan_data": {
                 "requested_amount": str(application.requested_amount),
                 "requested_duration_months": application.requested_duration_months,
                 "debt_to_income_ratio": cashflow.debt_to_income_ratio if cashflow else None,
+                "monthly_income": str(cashflow.monthly_income) if cashflow else "0",
+                "monthly_expenses": str(cashflow.monthly_expenses) if cashflow else "0",
+                "proposed_monthly_payment": str(cashflow.proposed_monthly_payment) if cashflow else "0",
+                "net_cashflow": str(cashflow.net_cashflow) if cashflow else "0",
             },
             "repayment_history": {
                 "previous_loans_count": previous_loans_count,

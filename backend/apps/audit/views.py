@@ -26,7 +26,7 @@ from django.utils import timezone
 
 class AuditLogListView(generics.ListAPIView):
     serializer_class = AuditLogSerializer
-    permission_classes = [IsComplianceOfficer]
+    permission_classes = [IsComplianceOfficer | IsRiskAnalyst]
 
     def get_queryset(self):
         qs = AuditLog.objects.all()

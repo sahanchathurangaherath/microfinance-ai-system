@@ -173,8 +173,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const resolvedParams = use(params);
   const id = resolvedParams.id;
 
-  const { data: client, isLoading, mutate: mutateClient } = useSWR(`/clients/${id}/`, fetcher);
-  const { data: loans } = useSWR(`/loans/applications/?client=${id}`, fetcher);
+  const { data: client, isLoading, mutate: mutateClient } = useSWR(`/clients/${id}`, fetcher);
+  const { data: loans } = useSWR(`/loans/applications?client=${id}`, fetcher);
 
   const clientLoans = loans?.results || loans || [];
   const kycDocs = client?.documents || [];

@@ -12,10 +12,10 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function ComplianceDashboard() {
-  const { data: fraud } = useSWR("/fraud/alerts/", fetcher);
-  const { data: audit } = useSWR("/audit/logs/", fetcher);
-  const { data: fraudReport } = useSWR("/reports/fraud/", fetcher);
-  const { data: kycData } = useSWR("/clients/", fetcher);
+  const { data: fraud } = useSWR("/fraud/alerts", fetcher);
+  const { data: audit } = useSWR("/audit/logs", fetcher);
+  const { data: fraudReport } = useSWR("/reports/fraud", fetcher);
+  const { data: kycData } = useSWR("/clients", fetcher);
 
   const fraudAlerts = fraud?.results || fraud || [];
   const auditLogs = audit?.results || audit || [];

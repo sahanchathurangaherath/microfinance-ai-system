@@ -44,7 +44,7 @@ export default function LoansPage() {
   if (status) params.set("status", status);
   params.set("page", String(page));
 
-  const { data, error, isLoading, mutate } = useSWR(`/loans/applications/?${params.toString()}`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(`/loans/applications?${params.toString()}`, fetcher);
   const loans = data?.results || data || [];
   const total = data?.count || loans.length;
   const totalPages = Math.ceil(total / 10);
@@ -140,7 +140,7 @@ export default function LoansPage() {
                 ) : loans.map((l: Record<string,unknown>) => (
                   <tr key={String(l.id)} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-sm"><span className="font-mono text-[13px] font-semibold text-blue-600">{String(l.application_number || "—")}</span></td>
-                    <td className="px-4 py-3 text-sm"><span>{String((l.client as Record<string,unknown>)?.first_name || "—")} {String((l.client as Record<string,unknown>)?.last_name || "")}</span></td>
+                    <td className="px-4 py-3 text-sm"><span>{String(l.client_name || "—")}</span></td>
                     <td className="px-4 py-3 text-sm"><span>{formatCurrency(Number(l.requested_amount || 0))}</span></td>
                     <td className="px-4 py-3 text-sm"><span>{String((l.loan_product as Record<string,unknown>)?.name || "—")}</span></td>
                     <td className="px-4 py-3 text-sm"><span>{String(l.requested_duration_months || "—")} mo</span></td>

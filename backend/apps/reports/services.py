@@ -68,6 +68,11 @@ class DashboardService:
                     triggered_at__date__gte=this_month_start
                 ).count(),
             },
+            "default_rate": {
+                "default_rate_percent": round(
+                    (Loan.objects.filter(status='DEFAULTED').count() / max(Loan.objects.count(), 1)) * 100, 2
+                )
+            },
         }
 
     @staticmethod

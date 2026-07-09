@@ -11,8 +11,8 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function CollectionsDashboard() {
-  const { data: collections, isLoading } = useSWR("/collections/overdue/", fetcher);
-  const { data: arrearsData } = useSWR("/reports/arrears/", fetcher);
+  const { data: collections, isLoading } = useSWR("/collections/overdue", fetcher);
+  const { data: arrearsData } = useSWR("/reports/arrears", fetcher);
   const overdue = collections?.results || collections || [];
 
   const buckets = (Array.isArray(arrearsData?.arrears) ? arrearsData.arrears : []).map((bucket: Record<string, unknown>) => ({

@@ -12,9 +12,9 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function BranchManagerDashboard() {
-  const { data: approvals, isLoading } = useSWR("/approvals/pending/manager-review/", fetcher);
-  const { data: dashboardData } = useSWR("/reports/dashboard/", fetcher);
-  const { data: kpiData } = useSWR("/reports/kpis/", fetcher);
+  const { data: approvals, isLoading } = useSWR("/approvals/pending/manager-review", fetcher);
+  const { data: dashboardData } = useSWR("/reports/dashboard", fetcher);
+  const { data: kpiData } = useSWR("/reports/kpis", fetcher);
   const pending = normalizeArrayData<Record<string, unknown>>(approvals);
   const portfolio = dashboardData?.portfolio || {};
   const defaultRate = dashboardData?.default_rate || {};

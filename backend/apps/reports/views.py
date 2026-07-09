@@ -60,7 +60,7 @@ class DisbursementSummaryView(APIView):
 
 
 class AgentPerformanceView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdminOrBranchManager]
 
     def get(self, request):
         data = DashboardService.get_agent_performance()
@@ -104,7 +104,7 @@ class RoleBasedDashboardView(APIView):
             return Response({**portfolio, **arrears, **default_rate})
 
         elif role == 'risk_analyst':
-            return Response(DashboardService.get_risk_distribution())
+            return Response(DashboardService.get_overview())
 
         elif role == 'collections_officer':
             return Response(DashboardService.get_arrears_distribution())
@@ -160,7 +160,7 @@ class ExportReportView(APIView):
             'admin': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'fraud', 'loans'],
             'branch_manager': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'loans'],
             'loan_officer': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'loans'],
-            'risk_analyst': ['risk_distribution'],
+            'risk_analyst': ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'loans'],
             'collections_officer': ['arrears'],
             'finance_staff': ['disbursement'],
             'compliance_officer': ['fraud'],

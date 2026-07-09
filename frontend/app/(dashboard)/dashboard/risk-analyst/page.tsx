@@ -12,10 +12,10 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function RiskAnalystDashboard() {
-  const { data: loans, isLoading } = useSWR("/loans/applications/?status=AI_SCREENING", fetcher);
-  const { data: riskData } = useSWR("/reports/risk-distribution/", fetcher);
-  const { data: agentPerf } = useSWR("/reports/agent-performance/", fetcher);
-  const { data: auditData } = useSWR("/audit/logs/", fetcher);
+  const { data: loans, isLoading } = useSWR("/loans/applications?status=AI_SCREENING", fetcher);
+  const { data: riskData } = useSWR("/reports/risk-distribution", fetcher);
+  const { data: agentPerf } = useSWR("/reports/agent-performance", fetcher);
+  const { data: auditData } = useSWR("/audit/logs", fetcher);
 
   const aiStats = agentPerf?.agent_performance?.A3_recommendation || {
     total_recommendations: 0, accepted: 0, overridden: 0, acceptance_rate_percent: 0
@@ -60,7 +60,7 @@ export default function RiskAnalystDashboard() {
 
   const reviewColumns = [
     { id: "app", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.application_number || "LA0000001")}</span> },
-    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String((r.client as Record<string,unknown>)?.first_name || "—")} {String((r.client as Record<string,unknown>)?.last_name || "")}</span> },
+    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || "—")}</span> },
     { id: "amount", header: "Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{formatCurrency(Number(r.requested_amount || 0))}</span> },
     { id: "score", header: "AI Score", cell: (r: Record<string,unknown>) => {
         const score = getDisplayScore(r);

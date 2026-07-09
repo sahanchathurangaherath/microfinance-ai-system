@@ -12,8 +12,8 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function LoanOfficerDashboard() {
-  const { data: loans, isLoading } = useSWR("/loans/applications/", fetcher);
-  const { data: clients } = useSWR("/clients/", fetcher);
+  const { data: loans, isLoading } = useSWR("/loans/applications", fetcher);
+  const { data: clients } = useSWR("/clients", fetcher);
 
   const applications = loans?.results || loans || [];
   const recentClients = clients?.results?.slice(0, 5) || [];
@@ -40,7 +40,7 @@ export default function LoanOfficerDashboard() {
 
   const pipelineColumns = [
     { id: "app_no", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.application_number || "LA0000001")}</span> },
-    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String((r.client as Record<string,unknown>)?.first_name || "—")} {String((r.client as Record<string,unknown>)?.last_name || "")}</span> },
+    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || "—")}</span> },
     { id: "amount", header: "Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-medium">{formatCurrency(Number(r.requested_amount || 0))}</span> },
     { id: "status", header: "Status", cell: (r: Record<string,unknown>) => <Badge status={String(r.status || "DRAFT")} /> },
     { id: "date", header: "Date", cell: (r: Record<string,unknown>) => <span className="text-[12px] text-gray-400">{formatDate(String(r.created_at || new Date()))}</span> },

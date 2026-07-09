@@ -12,9 +12,9 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function FinanceDashboard() {
-  const { data: loans, isLoading } = useSWR("/loans/applications/?status=APPROVED", fetcher);
-  const { data: disbursedData } = useSWR("/loans/applications/?status=DISBURSED", fetcher);
-  const { data: disbursementReport } = useSWR("/reports/disbursements/", fetcher);
+  const { data: loans, isLoading } = useSWR("/loans/applications?status=APPROVED", fetcher);
+  const { data: disbursedData } = useSWR("/loans/applications?status=DISBURSED", fetcher);
+  const { data: disbursementReport } = useSWR("/reports/disbursements", fetcher);
   const approved = normalizeArrayData<Record<string, unknown>>(loans);
   const disbursedApps = normalizeArrayData<Record<string, unknown>>(disbursedData);
   const disbursementSeries = Array.isArray(disbursementReport?.disbursements) ? disbursementReport.disbursements : [];
@@ -22,7 +22,7 @@ export default function FinanceDashboard() {
 
   const disbursementColumns = [
     { id: "app", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.application_number || "LA0000001")}</span> },
-    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String((r.client as Record<string,unknown>)?.first_name || "—")} {String((r.client as Record<string,unknown>)?.last_name || "")}</span> },
+    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || "—")}</span> },
     { id: "amount", header: "Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-semibold">{formatCurrency(Number(r.requested_amount || 0))}</span> },
     { id: "cond", header: "Conditions", cell: (r: Record<string,unknown>) => {
       const seed = String(r.id || r.application_number || "").split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -40,7 +40,7 @@ export default function FinanceDashboard() {
     const methods = ["BANK_TRANSFER", "CASH", "MOBILE_MONEY", "CHEQUE"];
     return {
       app: String(d.application_number || "LA000000"),
-      client: `${String((d.client as Record<string,unknown>)?.first_name || "")} ${String((d.client as Record<string,unknown>)?.last_name || "")}`,
+      client: String(d.client_name || "—"),
       amount: Number(d.requested_amount || 0),
       method: methods[seed % methods.length],
       date: formatDate(String(d.updated_at || d.created_at || new Date()))

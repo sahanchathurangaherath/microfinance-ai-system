@@ -44,9 +44,9 @@ class RiskAssessmentAgent(BaseAgent):
 
     def _llm_score(self, input_data: Dict) -> Dict:
         """
-        LLM-powered risk scoring.
-        The local model reasons through all 6 factors and provides full rationale.
-        Returns the same output structure as _rule_score so Django needs no changes.
+        LLM-powered risk scoring with hybrid rule integration.
+        The local model reasons through all 6 factors using enriched data.
+        Returns a score blended with the rule-based baseline.
         """
         import json
         from services.llm_client import call_llm
@@ -57,11 +57,61 @@ class RiskAssessmentAgent(BaseAgent):
         loan    = input_data.get("loan_data", {})
         history = input_data.get("repayment_history", {})
 
+        # 1. Run rule-based baseline scoring
+        rule_response = self._rule_score(input_data)
+        if rule_response.get("status") == "SUCCESS" and rule_response.get("output"):
+            baseline_score = float(rule_response["output"]["risk_score"])
+        else:
+            baseline_score = 50.0
+
         SYSTEM_PROMPT = """You are a Credit Risk Analyst for a microfinance institution in Sri Lanka.
 You evaluate loan applications for creditworthiness using financial data.
 You SCORE and CLASSIFY risk — you do NOT approve or reject loans.
 The Risk Analyst officer will review your output before any decision is made.
-Always respond with valid JSON only. No extra text, no markdown."""
+Always respond with valid JSON only. No extra text, no markdown.
+
+FEW-SHOT EXAMPLES:
+
+Example 1 (Low Risk - Agriculture):
+Input: DTI=0.25, LTI=1.5, KYC=95/100, Years in operation=4, Missed payments=0, Baseline Score=88
+Output:
+{
+  "risk_score": 88,
+  "risk_category": "LOW",
+  "confidence": 0.95,
+  "factor_scores": {
+    "dti_score": 25.0,
+    "lti_score": 20.0,
+    "kyc_score": 14.25,
+    "income_stability_score": 15.0,
+    "repayment_history_score": 15.0,
+    "dependents_score": 10.0
+  },
+  "default_signals": [],
+  "required_action": "LOAN_OFFICER_REVIEW",
+  "ai_rationale": "Strong applicant with a low debt-to-income ratio (25%) and low loan-to-income ratio (1.5x). Business is stable with 4 years in operation. Excellent repayment history with no missed payments. High KYC quality score."
+}
+
+Example 2 (Medium/High Risk - Retail):
+Input: DTI=0.55, LTI=4.2, KYC=60/100, Years in operation=0.5, Missed payments=3, Baseline Score=38
+Output:
+{
+  "risk_score": 38,
+  "risk_category": "HIGH",
+  "confidence": 0.85,
+  "factor_scores": {
+    "dti_score": 0.0,
+    "lti_score": 0.0,
+    "kyc_score": 9.0,
+    "income_stability_score": 3.0,
+    "repayment_history_score": 0.0,
+    "dependents_score": 5.0
+  },
+  "default_signals": ["High DTI ratio: 55.0%", "Loan is 4.2x annual income", "Business less than 1 year", "Multiple missed payments: 3"],
+  "required_action": "BRANCH_MANAGER_ESCALATION",
+  "ai_rationale": "High-risk applicant. Debt-to-income ratio is high (55%) and the loan size exceeds 4x annual income. The business is in its early stages (less than 1 year) and the applicant has 3 missed payments in their history."
+}
+"""
 
         USER_PROMPT = f"""Evaluate this loan application for credit risk.
 
@@ -70,23 +120,31 @@ LOAN APPLICATION:
 - Requested Amount: LKR {loan.get("requested_amount", 0)}
 - Duration: {loan.get("requested_duration_months", 0)} months
 - Debt-to-Income Ratio: {loan.get("debt_to_income_ratio", "unknown")}
+- Monthly Revenue: LKR {loan.get("monthly_revenue", 0)}
+- Monthly Expenses: LKR {loan.get("monthly_expenses", 0)}
+- Proposed Monthly Payment: LKR {loan.get("proposed_monthly_payment", 0)}
+- Net Cashflow Surplus: LKR {loan.get("net_cashflow", 0)}
 
 CLIENT FINANCIAL PROFILE:
 - Monthly Income: LKR {client.get("monthly_income", 0)}
 - Number of Dependents: {client.get("number_of_dependents", 0)}
 - KYC Data Quality Score: {client.get("data_quality_score", 0)}/100
 - Years in Business/Employment: {client.get("years_in_operation", 0)}
+- Business Type: {client.get("business_type", "unknown")}
+- Business Description: {client.get("business_description", "none")}
 
 REPAYMENT HISTORY:
 - Previous Loans Count: {history.get("previous_loans_count", 0)}
 - Missed Payments: {history.get("missed_payments", 0)}
+
+BASELINE RULE-BASED SCORE: {baseline_score}/100
 
 Assess all 6 factors: DTI ratio, Loan-to-Income ratio, KYC completeness,
 income stability, repayment history, number of dependents.
 
 Return ONLY this JSON:
 {{
-  "risk_score": <float 0-100, where 0=highest risk, 100=lowest risk>,
+  "risk_score": <float 0-100, where 0=highest risk, 100=lowest risk. Suggest a score close to the Baseline score unless qualitative description indicates different risk>,
   "risk_category": "LOW" or "MEDIUM" or "HIGH",
   "confidence": <float 0.0-1.0>,
   "factor_scores": {{
@@ -131,13 +189,28 @@ Risk Category rules:
                 reason=f"LLM confidence {round(confidence, 2)} below threshold. Risk Analyst manual review required."
             )
 
+        # 2. Blend rule-based baseline score with LLM risk score
+        llm_score = float(output["risk_score"])
+        final_score = round((baseline_score * 0.70) + (llm_score * 0.30), 2)
+
+        # 3. Recalculate risk category and required action based on final blended score
+        if final_score >= 70:
+            final_category = "LOW"
+            final_action = "LOAN_OFFICER_REVIEW"
+        elif final_score >= 40:
+            final_category = "MEDIUM"
+            final_action = "RISK_ANALYST_REQUIRED"
+        else:
+            final_category = "HIGH"
+            final_action = "BRANCH_MANAGER_ESCALATION"
+
         factor_scores = output.get("factor_scores", {})
 
         return self.build_response(
             output={
                 "loan_id":          loan_id,
-                "risk_score":       round(float(output["risk_score"]), 2),
-                "risk_category":    output["risk_category"],
+                "risk_score":       final_score,
+                "risk_category":    final_category,
                 "factor_scores":    {
                     "dti_score":               float(factor_scores.get("dti_score", 0)),
                     "lti_score":               float(factor_scores.get("lti_score", 0)),
@@ -147,7 +220,7 @@ Risk Category rules:
                     "dependents_score":        float(factor_scores.get("dependents_score", 0)),
                 },
                 "default_signals":  output.get("default_signals", []),
-                "required_action":  output.get("required_action", "RISK_ANALYST_REQUIRED"),
+                "required_action":  final_action,
             },
             confidence=confidence,
             rationale=output.get("ai_rationale", ""),

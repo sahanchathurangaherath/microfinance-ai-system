@@ -12,11 +12,11 @@ import Table from "@/components/ui/Table";
 import Link from "next/link";
 
 export default function AdminDashboard() {
-  const { data: users, isLoading: usersLoading } = useSWR("/users/", fetcher);
-  const { data: loans, isLoading: loansLoading } = useSWR("/loans/applications/", fetcher);
-  const { data: fraud, isLoading: fraudLoading } = useSWR("/fraud/alerts/", fetcher);
-  const { data: audit, error: auditError, isLoading: auditLoading, mutate: mutateAudit } = useSWR("/audit/logs/", fetcher);
-  const { data: overviewData, isLoading: overviewLoading } = useSWR("/reports/dashboard/overview/", fetcher);
+  const { data: users, isLoading: usersLoading } = useSWR("/users", fetcher);
+  const { data: loans, isLoading: loansLoading } = useSWR("/loans/applications", fetcher);
+  const { data: fraud, isLoading: fraudLoading } = useSWR("/fraud/alerts", fetcher);
+  const { data: audit, error: auditError, isLoading: auditLoading, mutate: mutateAudit } = useSWR("/audit/logs", fetcher);
+  const { data: overviewData, isLoading: overviewLoading } = useSWR("/reports/dashboard/overview", fetcher);
 
   const userItems = Array.isArray(users?.results)
     ? (users.results as Record<string, unknown>[])

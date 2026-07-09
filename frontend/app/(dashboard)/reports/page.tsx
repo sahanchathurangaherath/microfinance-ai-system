@@ -23,8 +23,8 @@ export default function ReportsPage() {
   const [isViewing, setIsViewing] = useState<string | null>(null);
   const [viewData, setViewData] = useState<{ id: string; title: string; data: any } | null>(null);
 
-  const { data: dashboard, isLoading } = useSWR(can("reports:read") ? "/reports/dashboard/" : null, fetcher);
-  const { data: disbursementsData } = useSWR(can("reports:read") ? "/reports/disbursements/" : null, fetcher);
+  const { data: dashboard, isLoading } = useSWR(can("reports:read") ? "/reports/dashboard" : null, fetcher);
+  const { data: disbursementsData } = useSWR(can("reports:read") ? "/reports/disbursements" : null, fetcher);
 
   const handleExport = async (reportId: string) => {
     try {
