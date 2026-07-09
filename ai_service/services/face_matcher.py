@@ -7,11 +7,6 @@ Result is ADVISORY ONLY — never auto-rejects a client.
 
 from decouple import config
 
-try:
-    from deepface import DeepFace
-except ImportError:
-    DeepFace = None
-
 _ENABLED = config("A1_FACE_MATCH_ENABLED", default=True, cast=bool)
 
 

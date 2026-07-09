@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { ArrowLeft, FileText, Briefcase, DollarSign, Shield, Plus } from "lucide-react";
+import { ArrowLeft, FileText, Briefcase, DollarSign, Shield, Plus, Camera } from "lucide-react";
 import api, { fetcher, clientsAPI } from "@/lib/api";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -228,6 +228,75 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      setCameraStream(mediaStream);
+      setTimeout(() => {
+        const videoElement = document.getElementById("webcam-video") as HTMLVideoElement;
+        if (videoElement) {
+          videoElement.srcObject = mediaStream;
+        }
+      }, 300);
+    } catch (err) {
+      toast.error("Failed to access webcam camera. Check browser permissions.");
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraOpen) {
+      startCamera();
+    } else {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        setCameraStream(null);
+      }
+    }
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [isCameraOpen]);
+
+  const handleCapture = async () => {
+    const videoElement = document.getElementById("webcam-video") as HTMLVideoElement;
+    if (!videoElement) return;
+    setIsCapturing(true);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoElement.videoWidth || 640;
+      canvas.height = videoElement.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(async (blob) => {
+          if (blob) {
+            const file = new File([blob], `selfie_${Date.now()}.jpg`, { type: "image/jpeg" });
+            const formData = new FormData();
+            formData.append("document_type", "PHOTO");
+            formData.append("file", file);
+            
+            await api.post(`/kyc/${id}/documents/`, formData, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+            toast.success("Selfie captured and uploaded successfully!");
+            setIsCameraOpen(false);
+            mutateClient();
+          }
+        }, "image/jpeg", 0.9);
+      }
+    } catch (err) {
+      toast.error("Failed to capture image");
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -243,6 +312,34 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       <Link href="/clients"><Button variant="outline" className="mt-4">Back to Clients</Button></Link>
     </div>
   );
+
+  const rawNotes = client?.data_quality_notes || "";
+  let aiRecommend = "REQUIRES_REVIEW";
+  let aiNotes = rawNotes;
+  if (rawNotes.startsWith("[")) {
+    const endIdx = rawNotes.indexOf("]");
+    if (endIdx > -1) {
+      aiRecommend = rawNotes.substring(1, endIdx);
+      aiNotes = rawNotes.substring(endIdx + 1).trim();
+    }
+  }
+
+  // Parse GATE TRIGGERED block out of notes for a cleaner UI
+  let humanRationale = aiNotes;
+  let technicalDetails = "";
+  if (aiNotes.includes(" | ")) {
+    const parts = aiNotes.split(" | ");
+    technicalDetails = parts[0];
+    humanRationale = parts.slice(1).join(" | ");
+  } else if (aiNotes.startsWith("GATE TRIGGERED:")) {
+    technicalDetails = aiNotes;
+    humanRationale = "Human review required: System flags indicate unverified profile information or missing document files.";
+  }
+
+  // Ensure humanRationale does not display raw GATE TRIGGERED developer logs to staff
+  if (humanRationale.includes("GATE TRIGGERED:")) {
+    humanRationale = "Human review required: System flags indicate unverified profile information or missing document files.";
+  }
 
   return (
     <div className="space-y-6">
@@ -391,13 +488,44 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {activeTab === "KYC" && (
-        <div className="pt-6"> {/* FIX[BUG 18]: added pt-6 wrapper */}
+        <div className="pt-6 space-y-4"> {/* FIX[BUG 18]: added pt-6 wrapper */}
+          {rawNotes && (
+            <div className={`p-4 border rounded-2xl flex items-start gap-3 ${
+              aiRecommend === "RECOMMEND_VERIFY" 
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
+                : aiRecommend === "HIGH_RISK_FLAG" 
+                ? "bg-rose-50 border-rose-200 text-rose-800" 
+                : "bg-amber-50 border-amber-200 text-amber-800"
+            }`}>
+              <Shield className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+                aiRecommend === "RECOMMEND_VERIFY" 
+                  ? "text-emerald-600" 
+                  : aiRecommend === "HIGH_RISK_FLAG" 
+                  ? "text-rose-600" 
+                  : "text-amber-600"
+              }`} />
+              <div className="flex-1 min-w-0">
+                <h4 className="font-bold text-[14px]">
+                  {aiRecommend === "RECOMMEND_VERIFY" 
+                    ? "AI Suggestion: READY TO VERIFY (Strong Recommendation)" 
+                    : aiRecommend === "HIGH_RISK_FLAG" 
+                    ? "AI Suggestion: HIGH RISK WARNING (Action Required)" 
+                    : "AI Suggestion: REQUIRES MANUAL REVIEW"}
+                </h4>
+                <p className="text-[13px] mt-1 whitespace-pre-wrap">{humanRationale}</p>
+              </div>
+            </div>
+          )}
+
           <Card 
             title="KYC Documents" 
             action={
               <div className="flex gap-2">
                 {can("clients:write") && client?.status !== "VERIFIED" && (
                   <Button size="sm" variant="secondary" onClick={handleVerifyClient}>Run AI KYC Validation</Button>
+                )}
+                {can("clients:write") && (
+                  <Button size="sm" variant="outline" icon={<Camera className="h-3.5 w-3.5" />} onClick={() => setIsCameraOpen(true)}>Take Client Photo</Button>
                 )}
                 {can("clients:write") && (
                   <Button size="sm" variant="outline" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => setIsUploadModalOpen(true)}>Upload Document</Button>
@@ -441,6 +569,31 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
           </Card>
         </div>
       )}
+
+      <Modal isOpen={isCameraOpen} onClose={() => {
+        if (!isCapturing) {
+          setIsCameraOpen(false);
+        }
+      }} title="Capture Client Photo">
+        <div className="space-y-4">
+          <div className="relative bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center border border-gray-100">
+            <video id="webcam-video" autoPlay playsInline className="w-full h-full object-cover transform -scale-x-100" />
+            {isCapturing && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-sm font-semibold">
+                Capturing...
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsCameraOpen(false)} disabled={isCapturing}>
+              Cancel
+            </Button>
+            <Button type="button" variant="primary" className="flex-1" onClick={handleCapture} loading={isCapturing}>
+              Snap Photo
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal isOpen={isUploadModalOpen} onClose={() => !isUploading && setIsUploadModalOpen(false)} title="Upload KYC Document">
         <form onSubmit={handleUpload} className="space-y-4">
