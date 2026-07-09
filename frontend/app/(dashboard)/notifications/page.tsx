@@ -25,7 +25,7 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const params = filter === "unread" ? "?is_read=false" : "";
   const { data, error, isLoading, isValidating } = useSWR<{ results: Notification[] }>(
-    `/notifications/${params}`,
+    `/notifications${params}`,
     fetcher,
     { refreshInterval: 15000 }
   );
@@ -36,8 +36,8 @@ export default function NotificationsPage() {
     try {
       await notificationsAPI.markRead(id);
       toast.success("Notification marked as read");
-      mutate(`/notifications/${params}`);
-      mutate("/notifications/");
+      mutate(`/notifications${params}`);
+      mutate("/notifications");
     } catch (err) {
       toast.error("Failed to mark notification as read");
     }
@@ -47,8 +47,8 @@ export default function NotificationsPage() {
     try {
       await notificationsAPI.markAllRead();
       toast.success("All notifications marked as read");
-      mutate(`/notifications/${params}`);
-      mutate("/notifications/");
+      mutate(`/notifications${params}`);
+      mutate("/notifications");
     } catch (err) {
       toast.error("Failed to mark all as read");
     }
@@ -97,7 +97,7 @@ export default function NotificationsPage() {
         <div className="flex gap-2">
           <Button
             variant="secondary"
-            onClick={() => mutate(`/notifications/${params}`)}
+            onClick={() => mutate(`/notifications${params}`)}
             className="flex items-center gap-1.5"
             disabled={isLoading || isValidating}
           >
