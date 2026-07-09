@@ -53,7 +53,73 @@ class DataCollectionAgent(BaseAgent):
         import json
         from services.llm_client import call_llm
         from services.guardrails import validate_a1_output, confidence_requires_manual_review
+        from services.nic_validator import validate_sri_lankan_nic
+        from services.document_reader import read_nic_document
+        from services.face_matcher import compare_faces
 
+        # 1. NIC validation (pure Python)
+        nic_check = validate_sri_lankan_nic(
+            nic=client.get("nic_number", ""),
+            form_dob=client.get("date_of_birth", ""),
+            form_gender=client.get("gender", "")
+        )
+
+        # 2. Document OCR checks
+        ocr_result = {}
+        document_paths = kyc.get("document_paths", {})
+        nic_front_path = document_paths.get("NIC_FRONT")
+        if nic_front_path:
+            ocr_result = read_nic_document(nic_front_path, client)
+
+        # 3. Face matching checks
+        face_result = {}
+        selfie_path = document_paths.get("PHOTO")
+        if nic_front_path and selfie_path:
+            face_result = compare_faces(nic_front_path, selfie_path)
+
+        # 4. Income consistency checks
+        income_result = {}
+        income_data = client.get("income", {})
+        business_data = client.get("business", {})
+        if income_data and business_data:
+            SYSTEM_INCOME = """You are a Sri Lankan microfinance credit analyst.
+Assess income plausibility only. Return valid JSON only, no other text."""
+            
+            # Stated details
+            city = ""
+            district = ""
+            if client.get("addresses") and len(client.get("addresses")) > 0:
+                addr = client.get("addresses")[0]
+                city = addr.get("city", "")
+                district = addr.get("district", "")
+                
+            USER_INCOME = f"""Assess this income profile for a microfinance applicant in Sri Lanka:
+Occupation: {business_data.get('business_type', '')} — {business_data.get('business_name', '')}
+Years operating: {business_data.get('years_in_operation', 0)}
+Location: {city}, {district}
+Monthly income claimed: LKR {income_data.get('monthly_income', 0)}
+Monthly expenses: LKR {income_data.get('monthly_expenses', 0)}
+Dependents: {income_data.get('number_of_dependents', 0)}
+
+For context, typical monthly income ranges in Kalutara district:
+- Rubber tapper: LKR 18,000–35,000
+- Vegetable vendor: LKR 25,000–50,000
+- Grocery shop: LKR 45,000–85,000
+- Three-wheeler driver: LKR 40,000–70,000
+
+Return ONLY this JSON structure:
+{{
+  "income_plausibility": "PLAUSIBLE" or "SUSPICIOUS" or "IMPLAUSIBLE",
+  "concern_level": "NONE" or "LOW" or "HIGH",
+  "flags": ["list any anomalies or high ratios"],
+  "rationale": "one sentence explanation"
+}}"""
+            try:
+                income_result, _ = call_llm(SYSTEM_INCOME, USER_INCOME, agent_id="A1")
+            except Exception:
+                pass
+
+        # 5. Call main A1 LLM validation
         SYSTEM_PROMPT = """You are a KYC Data Quality Analyst for a microfinance institution in Sri Lanka.
 Your job is to evaluate client data for completeness, internal consistency, and early fraud signals.
 You ASSIST the Loan Officer — you do NOT approve or reject the client.
@@ -80,7 +146,6 @@ Return ONLY this JSON structure:
         try:
             output, usage = call_llm(SYSTEM_PROMPT, USER_PROMPT, agent_id=self.agent_id)
         except Exception as e:
-            # Local LLM failed — return low confidence to trigger Manual Mode
             return self.low_confidence_response(
                 input_reference=f"client:{client_id}",
                 reason=f"LLM service error: {str(e)}. Manual KYC review required."
@@ -96,22 +161,102 @@ Return ONLY this JSON structure:
 
         confidence = float(output.get("confidence", 0.5))
 
-        # Low confidence → flag for manual review
+        # Adjust score and flags based on NIC, OCR, Face Match, and Income checks
+        score = float(output.get("data_quality_score", 100.0))
+        consistency_flags = output.get("consistency_flags", [])
+        fraud_signals = output.get("fraud_signals", [])
+
+        # NIC Flags
+        if not nic_check.get("valid_format", True):
+            score -= 30
+            fraud_signals.append("INVALID_NIC_FORMAT: NIC does not match Sri Lankan format rules.")
+        elif nic_check.get("has_contradictions"):
+            score -= 20
+            for flag in nic_check.get("flags", []):
+                fraud_signals.append(f"NIC: {flag}")
+
+        # OCR Flags
+        if ocr_result:
+            if not ocr_result.get("document_readable"):
+                score -= 10
+                consistency_flags.append("OCR: NIC document is unreadable.")
+            else:
+                if ocr_result.get("name_match") is False:
+                    score -= 25
+                    fraud_signals.append(f"OCR: Name mismatch. Extracted '{ocr_result.get('extracted_name')}' from NIC.")
+                if ocr_result.get("nic_match") is False:
+                    score -= 30
+                    fraud_signals.append(f"OCR: NIC mismatch. Extracted '{ocr_result.get('extracted_nic')}' from NIC.")
+                if ocr_result.get("dob_match") is False:
+                    score -= 20
+                    fraud_signals.append(f"OCR: DOB mismatch. Extracted '{ocr_result.get('extracted_dob')}' from NIC.")
+                if not ocr_result.get("document_appears_genuine", True):
+                    score -= 20
+                    fraud_signals.append("OCR: Document authenticity concerns.")
+                for flag in ocr_result.get("flags", []):
+                    consistency_flags.append(f"OCR: {flag}")
+
+        # Face Match Flags
+        if face_result.get("face_match_available"):
+            if face_result.get("match_status") == "MISMATCH":
+                score -= 20
+                fraud_signals.append(face_result.get("flag", "Face mismatch detected."))
+            elif face_result.get("match_status") == "UNCERTAIN":
+                score -= 5
+                consistency_flags.append(face_result.get("flag", "Face matching uncertain."))
+
+        # Income Flags
+        if income_result:
+            concern = income_result.get("concern_level", "NONE")
+            if concern == "HIGH":
+                score -= 15
+                fraud_signals.append(f"INCOME: {income_result.get('rationale', 'Suspicious income profile.')}")
+            elif concern == "LOW":
+                score -= 5
+                consistency_flags.append(f"INCOME: {income_result.get('rationale', 'Minor income inconsistency.')}")
+            for flag in income_result.get("flags", []):
+                consistency_flags.append(f"INCOME: {flag}")
+
+        # Clamp score between 0 and 100
+        score = max(0.0, min(100.0, score))
+
+        # Re-evaluate confidence if major flags are raised
+        if fraud_signals:
+            confidence = max(0.4, confidence - len(fraud_signals) * 0.1)
+
+        # Decide recommendation (Verify, Review, or High Risk)
+        # score >= 90 and zero flags -> RECOMMEND_VERIFY
+        # score < 60 or major fraud signals -> HIGH_RISK_FLAG
+        # otherwise -> REQUIRES_REVIEW
+        if score >= 90.0 and len(fraud_signals) == 0 and len(consistency_flags) == 0:
+            verification_recommendation = "RECOMMEND_VERIFY"
+        elif score < 60.0 or len(fraud_signals) > 0:
+            verification_recommendation = "HIGH_RISK_FLAG"
+        else:
+            verification_recommendation = "REQUIRES_REVIEW"
+
+        # Low confidence -> flag for manual review
         if confidence_requires_manual_review(confidence):
             return self.low_confidence_response(
                 input_reference=f"client:{client_id}",
                 reason=f"LLM confidence {round(confidence, 2)} below threshold. Manual KYC review required."
             )
 
+        # Build final response
         return self.build_response(
             output={
                 "client_id":              client_id,
-                "data_quality_score":     float(output["data_quality_score"]),
+                "data_quality_score":     round(score, 2),
                 "missing_critical_fields": output.get("missing_critical_fields", []),
-                "consistency_flags":      output.get("consistency_flags", []),
-                "fraud_signals":          output.get("fraud_signals", []),
+                "consistency_flags":      consistency_flags,
+                "fraud_signals":          fraud_signals,
+                "nic_validation":         nic_check,
+                "ocr_result":             ocr_result,
+                "face_match":             face_result,
+                "income_validation":      income_result,
+                "verification_recommendation": verification_recommendation
             },
-            confidence=confidence,
+            confidence=round(confidence, 2),
             rationale=output.get("rationale", ""),
             input_reference=f"client:{client_id}",
             usage_metadata=usage
