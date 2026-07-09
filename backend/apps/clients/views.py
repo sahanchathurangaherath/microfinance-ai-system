@@ -141,6 +141,36 @@ class A1ValidateClientView(APIView):
         has_id_doc = client.documents.filter(document_type__in=['NIC', 'PASSPORT', 'DRIVING_LICENSE', 'PHOTO', 'NIC_FRONT', 'NIC_BACK']).exists()
         has_income_doc = client.documents.filter(document_type__in=['BANK_STATEMENT', 'PROOF_OF_INCOME']).exists()
 
+        income_data = {}
+        business_data = {}
+        from django.core.exceptions import ObjectDoesNotExist
+        try:
+            income_data = {
+                "monthly_income": str(client.income.monthly_income),
+                "monthly_expenses": str(client.income.monthly_expenses),
+                "number_of_dependents": client.income.number_of_dependents
+            }
+        except ObjectDoesNotExist:
+            pass
+
+        try:
+            if client.business:
+                business_data = {
+                    "business_name": client.business.business_name,
+                    "business_type": client.business.business_type,
+                    "years_in_operation": client.business.years_in_operation,
+                    "number_of_employees": client.business.number_of_employees,
+                    "monthly_revenue": str(client.business.monthly_revenue)
+                }
+        except ObjectDoesNotExist:
+            pass
+
+        # Collect document paths on disk
+        doc_paths = {}
+        for doc in client.documents.all():
+            if doc.file:
+                doc_paths[doc.document_type] = doc.file.path
+
         # Build input payload for A1
         payload = {
             "client_id": client.id,
@@ -152,9 +182,8 @@ class A1ValidateClientView(APIView):
                 "gender": client.gender,
                 "phone_primary": client.phone_primary,
                 "addresses": list(client.addresses.values()),
-                "income": {
-                    "monthly_income": str(client.income.monthly_income)
-                } if hasattr(client, 'income') else {}
+                "income": income_data,
+                "business": business_data
             },
             "kyc_data": {
                 "nic_verified": checklist.nic_verified,
@@ -163,6 +192,7 @@ class A1ValidateClientView(APIView):
                 "aml_check_done": checklist.aml_check_done,
                 "id_document_uploaded": has_id_doc,
                 "income_document_uploaded": has_income_doc,
+                "document_paths": doc_paths,
             }
         }
 
@@ -180,7 +210,8 @@ class A1ValidateClientView(APIView):
         output = ai_result.get("output") or {}
         if output:
             client.data_quality_score = output.get("data_quality_score")
-            client.data_quality_notes = ai_result.get("rationale", "")
+            recommendation = output.get("verification_recommendation", "REQUIRES_REVIEW")
+            client.data_quality_notes = f"[{recommendation}] {ai_result.get('rationale', '')}"
 
         # Update status to KYC_SUBMITTED
         client.status = 'KYC_SUBMITTED'
