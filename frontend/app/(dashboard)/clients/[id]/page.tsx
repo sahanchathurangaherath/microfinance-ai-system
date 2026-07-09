@@ -4,7 +4,9 @@ import { useState, use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { ArrowLeft, FileText, Briefcase, DollarSign, Shield, Plus } from "lucide-react";
-import { fetcher } from "@/lib/api";
+import api, { fetcher, clientsAPI } from "@/lib/api";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import { formatDate, formatCurrency, getInitials } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -14,7 +16,6 @@ import Table from "@/components/ui/Table";
 import Modal from "@/components/ui/Modal";
 import { usePermissions } from "@/lib/permissions";
 import { useToast } from "@/components/ui/Toast";
-import api from "@/lib/api";
 
 const TABS = ["Overview", "KYC", "Loan History", "Activity"];
 
@@ -27,6 +28,147 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   const [uploadType, setUploadType] = useState("NIC");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [modalTab, setModalTab] = useState("personal");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Personal Info States
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editNicNumber, setEditNicNumber] = useState("");
+  const [editDob, setEditDob] = useState("");
+  const [editGender, setEditGender] = useState("");
+  const [editPhonePrimary, setEditPhonePrimary] = useState("");
+  const [editPhoneSecondary, setEditPhoneSecondary] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editLang, setEditLang] = useState("");
+
+  // Address States
+  const [editAddressType, setEditAddressType] = useState("HOME");
+  const [editAddressLine1, setEditAddressLine1] = useState("");
+  const [editAddressLine2, setEditAddressLine2] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editDistrict, setEditDistrict] = useState("");
+  const [editProvince, setEditProvince] = useState("");
+
+  // Business States
+  const [editBusinessName, setEditBusinessName] = useState("");
+  const [editBusinessType, setEditBusinessType] = useState("SOLE_PROPRIETOR");
+  const [editBusinessYears, setEditBusinessYears] = useState(0);
+  const [editBusinessEmployees, setEditBusinessEmployees] = useState(0);
+  const [editBusinessRevenue, setEditBusinessRevenue] = useState(0);
+
+  // Income States
+  const [editIncomeSource, setEditIncomeSource] = useState("BUSINESS");
+  const [editMonthlyIncome, setEditMonthlyIncome] = useState(0);
+  const [editOtherIncome, setEditOtherIncome] = useState(0);
+  const [editMonthlyExpenses, setEditMonthlyExpenses] = useState(0);
+  const [editExistingDebt, setEditExistingDebt] = useState(0);
+  const [editDependents, setEditDependents] = useState(0);
+
+  const openEditModal = () => {
+    if (!client) return;
+    
+    // Personal Info
+    setEditFirstName(client.first_name || "");
+    setEditLastName(client.last_name || "");
+    setEditNicNumber(client.nic_number || "");
+    setEditDob(client.date_of_birth || "");
+    setEditGender(client.gender || "M");
+    setEditPhonePrimary(client.phone_primary || "");
+    setEditPhoneSecondary(client.phone_secondary || "");
+    setEditEmail(client.email || "");
+    setEditLang(client.preferred_language || "en");
+
+    // Address Info (take primary address if available)
+    const primaryAddr = client.addresses?.find((a: Record<string,unknown>) => a.is_primary) || client.addresses?.[0] || {};
+    setEditAddressType(primaryAddr.address_type || "HOME");
+    setEditAddressLine1(primaryAddr.address_line_1 || "");
+    setEditAddressLine2(primaryAddr.address_line_2 || "");
+    setEditCity(primaryAddr.city || "");
+    setEditDistrict(primaryAddr.district || "");
+    setEditProvince(primaryAddr.province || "");
+
+    // Business Info
+    const biz = client.business || {};
+    setEditBusinessName(biz.business_name || "");
+    setEditBusinessType(biz.business_type || "SOLE_PROPRIETOR");
+    setEditBusinessYears(biz.years_in_operation || 0);
+    setEditBusinessEmployees(biz.number_of_employees || 0);
+    setEditBusinessRevenue(biz.monthly_revenue || 0);
+
+    // Income Info
+    const inc = client.income || {};
+    setEditIncomeSource(inc.income_source || "BUSINESS");
+    setEditMonthlyIncome(inc.monthly_income || 0);
+    setEditOtherIncome(inc.other_income || 0);
+    setEditMonthlyExpenses(inc.monthly_expenses || 0);
+    setEditExistingDebt(inc.existing_debt_monthly || 0);
+    setEditDependents(inc.number_of_dependents || 0);
+
+    setModalTab("personal");
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      // 1. Update personal details
+      await clientsAPI.updateClient(Number(id), {
+        first_name: editFirstName,
+        last_name: editLastName,
+        nic_number: editNicNumber,
+        date_of_birth: editDob,
+        gender: editGender,
+        phone_primary: editPhonePrimary,
+        phone_secondary: editPhoneSecondary,
+        email: editEmail,
+        preferred_language: editLang,
+      });
+
+      // 2. Update address
+      await api.post(`/clients/${id}/address`, {
+        address_type: editAddressType,
+        address_line_1: editAddressLine1,
+        address_line_2: editAddressLine2,
+        city: editCity,
+        district: editDistrict,
+        province: editProvince,
+        is_primary: true,
+      });
+
+      // 3. Update business (only if name provided)
+      if (editBusinessName) {
+        await api.post(`/clients/${id}/business`, {
+          business_name: editBusinessName,
+          business_type: editBusinessType,
+          years_in_operation: Number(editBusinessYears),
+          number_of_employees: Number(editBusinessEmployees),
+          monthly_revenue: Number(editBusinessRevenue),
+        });
+      }
+
+      // 4. Update income
+      await api.post(`/clients/${id}/income`, {
+        income_source: editIncomeSource,
+        monthly_income: Number(editMonthlyIncome),
+        other_income: Number(editOtherIncome),
+        monthly_expenses: Number(editMonthlyExpenses),
+        existing_debt_monthly: Number(editExistingDebt),
+        number_of_dependents: Number(editDependents),
+      });
+
+      toast.success("Profile updated successfully");
+      setIsEditModalOpen(false);
+      mutateClient();
+    } catch (err: unknown) {
+      toast.error("Failed to update profile details");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const resolvedParams = use(params);
   const id = resolvedParams.id;
@@ -109,6 +251,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         <Button variant="ghost" size="sm" icon={<ArrowLeft className="h-4 w-4" />}>All Clients</Button>
       </Link>
 
+      {/* Warning banner for active status */}
+      {client.status === "ACTIVE" && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-[13px] flex items-center gap-2">
+          <Shield className="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <span>This client profile is <strong>Active</strong>. Details are locked for audit compliance and cannot be edited.</span>
+        </div>
+      )}
+
       {/* Client Header */}
       <div className="card p-6">
         <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -142,7 +292,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             )}
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            {can("clients:write") && <Button variant="outline" size="sm">Edit Profile</Button>}
+            {can("clients:write") && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={openEditModal} 
+                disabled={client.status === "ACTIVE"}
+              >
+                Edit Profile
+              </Button>
+            )}
             {can("loans:write") && <Link href={`/loans/new?client=${id}`}><Button size="sm" icon={<Plus className="h-4 w-4" />}>New Loan</Button></Link>}
           </div>
         </div>
@@ -320,6 +479,165 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             </Button>
             <Button type="submit" variant="primary" className="flex-1" loading={isUploading}>
               Upload
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Profile Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => !isSaving && setIsEditModalOpen(false)} title="Edit Client Profile">
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          {/* Tab Selection */}
+          <div className="flex border-b border-gray-100 mb-4 overflow-x-auto scrollbar-none gap-2">
+            {[
+              { id: "personal", label: "1. Personal Info" },
+              { id: "address", label: "2. Address" },
+              { id: "business", label: "3. Business" },
+              { id: "income", label: "4. Income" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setModalTab(tab.id)}
+                className={`px-4 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors duration-200 ${modalTab === tab.id ? "border-blue-600 text-blue-600 font-bold" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Personal Info Tab */}
+          {modalTab === "personal" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="First Name *" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} required disabled={isSaving} />
+                <Input label="Last Name *" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} required disabled={isSaving} />
+              </div>
+              <Input label="NIC Number *" value={editNicNumber} onChange={(e) => setEditNicNumber(e.target.value)} required disabled={isSaving} />
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Date of Birth *" type="date" value={editDob} onChange={(e) => setEditDob(e.target.value)} required disabled={isSaving} />
+                <Select 
+                  label="Gender *" 
+                  value={editGender} 
+                  onChange={(e) => setEditGender(e.target.value)} 
+                  options={[
+                    { value: "M", label: "Male" },
+                    { value: "F", label: "Female" },
+                    { value: "O", label: "Other" }
+                  ]} 
+                  disabled={isSaving} 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Primary Phone *" value={editPhonePrimary} onChange={(e) => setEditPhonePrimary(e.target.value)} required disabled={isSaving} />
+                <Input label="Secondary Phone" value={editPhoneSecondary} onChange={(e) => setEditPhoneSecondary(e.target.value)} disabled={isSaving} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Email Address" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} disabled={isSaving} />
+                <Select 
+                  label="Preferred Language" 
+                  value={editLang} 
+                  onChange={(e) => setEditLang(e.target.value)} 
+                  options={[
+                    { value: "en", label: "English" },
+                    { value: "si", label: "Sinhala" },
+                    { value: "ta", label: "Tamil" }
+                  ]} 
+                  disabled={isSaving} 
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Address Tab */}
+          {modalTab === "address" && (
+            <div className="space-y-4">
+              <Select 
+                label="Address Type" 
+                value={editAddressType} 
+                onChange={(e) => setEditAddressType(e.target.value)} 
+                options={[
+                  { value: "HOME", label: "Home" },
+                  { value: "BUSINESS", label: "Business" },
+                  { value: "POSTAL", label: "Postal" }
+                ]} 
+                disabled={isSaving} 
+              />
+              <Input label="Address Line 1 *" value={editAddressLine1} onChange={(e) => setEditAddressLine1(e.target.value)} required disabled={isSaving} />
+              <Input label="Address Line 2" value={editAddressLine2} onChange={(e) => setEditAddressLine2(e.target.value)} disabled={isSaving} />
+              <div className="grid grid-cols-3 gap-4">
+                <Input label="City *" value={editCity} onChange={(e) => setEditCity(e.target.value)} required disabled={isSaving} />
+                <Input label="District *" value={editDistrict} onChange={(e) => setEditDistrict(e.target.value)} required disabled={isSaving} />
+                <Input label="Province *" value={editProvince} onChange={(e) => setEditProvince(e.target.value)} required disabled={isSaving} />
+              </div>
+            </div>
+          )}
+
+          {/* Business Tab */}
+          {modalTab === "business" && (
+            <div className="space-y-4">
+              <Input label="Business Name" placeholder="Leave empty if not applicable" value={editBusinessName} onChange={(e) => setEditBusinessName(e.target.value)} disabled={isSaving} />
+              {editBusinessName && (
+                <>
+                  <Select 
+                    label="Business Type" 
+                    value={editBusinessType} 
+                    onChange={(e) => setEditBusinessType(e.target.value)} 
+                    options={[
+                      { value: "SOLE_PROPRIETOR", label: "Sole Proprietor" },
+                      { value: "PARTNERSHIP", label: "Partnership" },
+                      { value: "PRIVATE_LIMITED", label: "Private Limited" },
+                      { value: "INFORMAL", label: "Informal Business" },
+                      { value: "FARMING", label: "Farming" },
+                      { value: "OTHER", label: "Other" }
+                    ]} 
+                    disabled={isSaving} 
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Years in Operation" type="number" min={0} value={editBusinessYears} onChange={(e) => setEditBusinessYears(Number(e.target.value))} disabled={isSaving} />
+                    <Input label="Number of Employees" type="number" min={0} value={editBusinessEmployees} onChange={(e) => setEditBusinessEmployees(Number(e.target.value))} disabled={isSaving} />
+                  </div>
+                  <Input label="Monthly Revenue (LKR)" type="number" min={0} value={editBusinessRevenue} onChange={(e) => setEditBusinessRevenue(Number(e.target.value))} disabled={isSaving} />
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Income Tab */}
+          {modalTab === "income" && (
+            <div className="space-y-4">
+              <Select 
+                label="Income Source" 
+                value={editIncomeSource} 
+                onChange={(e) => setEditIncomeSource(e.target.value)} 
+                options={[
+                  { value: "BUSINESS", label: "Business Income" },
+                  { value: "SALARY", label: "Salary" },
+                  { value: "AGRICULTURE", label: "Agriculture" },
+                  { value: "REMITTANCE", label: "Remittance" },
+                  { value: "PENSION", label: "Pension" },
+                  { value: "OTHER", label: "Other" }
+                ]} 
+                disabled={isSaving} 
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Monthly Income (LKR) *" type="number" min={0} value={editMonthlyIncome} onChange={(e) => setEditMonthlyIncome(Number(e.target.value))} required disabled={isSaving} />
+                <Input label="Other Income (LKR)" type="number" min={0} value={editOtherIncome} onChange={(e) => setEditOtherIncome(Number(e.target.value))} disabled={isSaving} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Monthly Expenses (LKR)" type="number" min={0} value={editMonthlyExpenses} onChange={(e) => setEditMonthlyExpenses(Number(e.target.value))} disabled={isSaving} />
+                <Input label="Existing Debt Payments (LKR)" type="number" min={0} value={editExistingDebt} onChange={(e) => setEditExistingDebt(Number(e.target.value))} disabled={isSaving} />
+              </div>
+              <Input label="Number of Dependents" type="number" min={0} max={20} value={editDependents} onChange={(e) => setEditDependents(Number(e.target.value))} disabled={isSaving} />
+            </div>
+          )}
+
+          <div className="pt-4 flex gap-3 border-t border-gray-100">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditModalOpen(false)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1" loading={isSaving}>
+              Save Changes
             </Button>
           </div>
         </form>

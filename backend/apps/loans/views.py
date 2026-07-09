@@ -58,8 +58,14 @@ class LoanApplicationListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         # Loan officers see their own applications; admins/managers see all
         if user.role in ['admin', 'branch_manager', 'risk_analyst', 'credit_committee', 'finance_staff', 'collections_officer', 'compliance_officer']:
-            return LoanApplication.objects.all()
-        return LoanApplication.objects.filter(created_by=user)
+            qs = LoanApplication.objects.all()
+        else:
+            qs = LoanApplication.objects.filter(created_by=user)
+
+        client_id = self.request.query_params.get('client')
+        if client_id:
+            qs = qs.filter(client_id=client_id)
+        return qs
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
