@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { AlertTriangle, Search, Filter, Shield, Eye, CheckCircle, ShieldAlert } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatDate, formatRelativeTime } from "@/lib/utils";
+import { formatDate, formatRelativeTime, normalizeArrayData } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -21,7 +21,7 @@ export default function FraudPage() {
   const [isTriggering, setIsTriggering] = useState(false);
   const params = statusFilter ? `?is_resolved=${statusFilter}` : "";
   const { data, error, isLoading, mutate } = useSWR(can("fraud:read") ? `/fraud/alerts/${params}` : null, fetcher);
-  const alerts = data?.results || data || [];
+  const alerts = normalizeArrayData<Record<string, unknown>>(data);
 
   if (!can("fraud:read")) {
     return (

@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { CheckCircle, XCircle, Clock, ArrowRight, Filter } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/utils";
+import { formatCurrency, formatDate, formatRelativeTime, normalizeArrayData } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -16,7 +16,7 @@ export default function ApprovalsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const params = statusFilter ? `?status=${statusFilter}` : "";
   const { data, error, isLoading, mutate } = useSWR(`/approvals/pending${params}`, fetcher);
-  const approvals = data?.results || data || [];
+  const approvals = normalizeArrayData<Record<string, unknown>>(data);
 
   const columns = [
     { id: "app", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String((r.application as Record<string,unknown>)?.application_number || r.application_number || "—")}</span> },

@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { DollarSign, CheckCircle, Clock, AlertTriangle, Filter, Search } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, normalizeArrayData } from "@/lib/utils";
 import StatCard from "@/components/ui/StatCard";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -19,7 +19,7 @@ export default function RepaymentsPage() {
   const [isTriggering, setIsTriggering] = useState(false);
   const params = statusFilter ? `?status=${statusFilter}` : "";
   const { data, error, isLoading, mutate } = useSWR(`/repayments/${params}`, fetcher);
-  const repayments = data?.results || data || [];
+  const repayments = normalizeArrayData<Record<string, unknown>>(data);
 
   const dueAmount = repayments.reduce((sum: number, r: Record<string,unknown>) => sum + Number(r.total_amount_due || 0), 0);
   const collectedAmount = repayments.reduce((sum: number, r: Record<string,unknown>) => sum + Number(r.amount_paid || 0), 0);

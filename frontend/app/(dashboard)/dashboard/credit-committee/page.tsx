@@ -21,9 +21,9 @@ export default function CreditCommitteeDashboard() {
   };
 
   const committeeColumns = [
-    { id: "app", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String((r.application as Record<string,unknown>)?.application_number || "LA0000001")}</span> },
-    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String((r.application as Record<string,unknown>)?.client_name || "—")}</span> },
-    { id: "amount", header: "Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-semibold">{formatCurrency(Number((r.application as Record<string,unknown>)?.requested_amount || 0))}</span> },
+    { id: "app", header: "App #", cell: (r: Record<string,unknown>) => <span className="font-mono text-[13px] font-semibold text-blue-600">{String(r.application_number || "—")}</span> },
+    { id: "client", header: "Client", cell: (r: Record<string,unknown>) => <span className="text-[13px]">{String(r.client_name || "—")}</span> },
+    { id: "amount", header: "Amount", cell: (r: Record<string,unknown>) => <span className="text-[13px] font-semibold">{formatCurrency(Number(r.requested_amount || 0))}</span> },
     { id: "for", header: "Votes For", cell: (r: Record<string,unknown>) => <span className="text-emerald-600 font-bold">{String(getVoteCount((r.committee_decision as Record<string,unknown>)?.vote_for, 0))}</span> },
     { id: "against", header: "Votes Against", cell: (r: Record<string,unknown>) => <span className="text-red-600 font-bold">{String(getVoteCount((r.committee_decision as Record<string,unknown>)?.vote_against, 0))}</span> },
     { id: "quorum", header: "Quorum", cell: (r: Record<string,unknown>) => {

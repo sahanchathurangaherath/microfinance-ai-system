@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -79,7 +79,7 @@ const STATUS_STYLES: Record<string, string> = {
   LEGAL: "bg-rose-50 text-rose-700",
 };
 
-const ACTION_TYPE_ICONS: Record<string, JSX.Element> = {
+const ACTION_TYPE_ICONS: Record<string, React.ReactNode> = {
   PHONE_CALL: <Phone className="h-3.5 w-3.5 text-blue-500" />,
   SMS: <MessageSquare className="h-3.5 w-3.5 text-green-500" />,
   EMAIL: <Mail className="h-3.5 w-3.5 text-indigo-500" />,

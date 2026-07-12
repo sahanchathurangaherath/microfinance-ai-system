@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Search, ArrowRight } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatCurrency, formatRelativeTime } from "@/lib/utils";
+import { formatCurrency, formatRelativeTime, normalizeArrayData } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -21,7 +21,7 @@ export default function CollectionsPage() {
   params.set("page", String(page));
 
   const { data, isLoading } = useSWR(`/collections/overdue/?${params.toString()}`, fetcher);
-  const collections = data?.results || data || [];
+  const collections = normalizeArrayData<Record<string, unknown>>(data);
   const total = data?.count || collections.length;
   const totalPages = Math.ceil(total / 10);
 

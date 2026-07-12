@@ -17,7 +17,7 @@ import { usePermissions } from "@/lib/permissions";
 import { ShieldAlert } from "lucide-react";
 
 export default function ReportsPage() {
-  const { can } = usePermissions();
+  const { can, role } = usePermissions();
   const toast = useToast();
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isViewing, setIsViewing] = useState<string | null>(null);
@@ -84,14 +84,29 @@ export default function ReportsPage() {
     dashboard?.applications?.total ??
     0;
 
-  const reports = [
+  const roleAllowedReports: Record<string, string[]> = {
+    admin: ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'fraud', 'loans'],
+    branch_manager: ['portfolio', 'default_rate', 'arrears', 'disbursement', 'loans'],
+    loan_officer: ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'loans'],
+    risk_analyst: ['portfolio', 'default_rate', 'arrears', 'disbursement', 'risk_distribution', 'agent_performance', 'loans'],
+    collections_officer: ['arrears'],
+    finance_staff: ['disbursement'],
+    compliance_officer: ['fraud'],
+  };
+
+  const allowed = roleAllowedReports[role] || [];
+
+  const allReports = [
     { id: "portfolio", title: "Portfolio Summary", desc: "Overall lending portfolio health and composition", icon: <PieChart className="h-6 w-6 text-blue-600" />, bg: "bg-blue-50" },
     { id: "disbursement", title: "Disbursement Report", desc: "Monthly disbursement volumes and trends", icon: <DollarSign className="h-6 w-6 text-emerald-600" />, bg: "bg-emerald-50" },
     { id: "arrears", title: "Collection Report", desc: "Recovery rates and overdue loan tracking", icon: <TrendingUp className="h-6 w-6 text-purple-600" />, bg: "bg-purple-50" },
     { id: "agent_performance", title: "Client Analytics", desc: "Client demographics and acquisition trends", icon: <Users className="h-6 w-6 text-cyan-600" />, bg: "bg-cyan-50" },
     { id: "default_rate", title: "Loan Pipeline", desc: "Application funnel and conversion rates", icon: <FileText className="h-6 w-6 text-amber-600" />, bg: "bg-amber-50" },
     { id: "risk_distribution", title: "Risk Distribution", desc: "Risk scoring breakdown across portfolio", icon: <BarChart2 className="h-6 w-6 text-red-600" />, bg: "bg-red-50" },
+    { id: "fraud", title: "Fraud Report", desc: "Fraud alerts and security investigations", icon: <ShieldAlert className="h-6 w-6 text-red-600" />, bg: "bg-red-50" },
   ];
+
+  const reports = allReports.filter(r => allowed.includes(r.id));
 
   return (
     <div className="space-y-6">
@@ -109,7 +124,9 @@ export default function ReportsPage() {
               }}
             />
           </div>
-          <Button variant="outline" size="sm" icon={<Download className="h-4 w-4" />} onClick={() => handleExport("portfolio")} disabled={isExporting !== null}>Export All</Button>
+          {allowed.includes("portfolio") && (
+            <Button variant="outline" size="sm" icon={<Download className="h-4 w-4" />} onClick={() => handleExport("portfolio")} disabled={isExporting !== null}>Export All</Button>
+          )}
         </div>
       </div>
 

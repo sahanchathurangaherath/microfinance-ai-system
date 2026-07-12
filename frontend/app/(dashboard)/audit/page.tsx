@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { Shield, Search, Calendar, User, Filter, ShieldAlert } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatRelativeTime } from "@/lib/utils";
+import { formatRelativeTime, normalizeArrayData } from "@/lib/utils";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Table from "@/components/ui/Table";
@@ -15,7 +15,7 @@ export default function AuditPage() {
   const [actionFilter, setActionFilter] = useState("");
   const params = actionFilter ? `?action_type=${actionFilter}` : "";
   const { data, error, isLoading, mutate } = useSWR(can("audit:read") ? `/audit/logs/${params}` : null, fetcher);
-  const logs = data?.results || data || [];
+  const logs = normalizeArrayData<Record<string, unknown>>(data);
 
   if (!can("audit:read")) {
     return (

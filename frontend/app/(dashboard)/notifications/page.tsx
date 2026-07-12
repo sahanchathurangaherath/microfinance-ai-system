@@ -36,8 +36,8 @@ export default function NotificationsPage() {
     try {
       await notificationsAPI.markRead(id);
       toast.success("Notification marked as read");
-      mutate(`/notifications${params}`);
       mutate("/notifications");
+      mutate("/notifications?is_read=false");
     } catch (err) {
       toast.error("Failed to mark notification as read");
     }
@@ -47,8 +47,8 @@ export default function NotificationsPage() {
     try {
       await notificationsAPI.markAllRead();
       toast.success("All notifications marked as read");
-      mutate(`/notifications${params}`);
       mutate("/notifications");
+      mutate("/notifications?is_read=false");
     } catch (err) {
       toast.error("Failed to mark all as read");
     }

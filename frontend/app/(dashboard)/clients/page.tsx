@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Search, Plus, Eye, Filter } from "lucide-react";
 import { fetcher } from "@/lib/api";
-import { formatDate, getInitials, cn } from "@/lib/utils";
+import { formatDate, getInitials, cn, normalizeArrayData } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -50,7 +50,7 @@ export default function ClientsPage() {
 
   const { data, error, isLoading, mutate } = useSWR(`/clients?${params.toString()}`, fetcher);
 
-  const clients: Client[] = data?.results || data || [];
+  const clients = normalizeArrayData<Client>(data);
   const total = data?.count || clients.length;
   const pageSize = 10;
   const totalPages = Math.ceil(total / pageSize);

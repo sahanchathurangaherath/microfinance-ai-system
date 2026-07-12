@@ -5,7 +5,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Search, Plus, Eye, Filter, Download } from "lucide-react";
 import { fetcher, reportsAPI } from "@/lib/api";
-import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { formatCurrency, formatDate, cn, normalizeArrayData } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -45,7 +45,7 @@ export default function LoansPage() {
   params.set("page", String(page));
 
   const { data, error, isLoading, mutate } = useSWR(`/loans/applications?${params.toString()}`, fetcher);
-  const loans = data?.results || data || [];
+  const loans = normalizeArrayData<Record<string, unknown>>(data);
   const total = data?.count || loans.length;
   const totalPages = Math.ceil(total / 10);
   const pipelineCounts = data?.status_counts || {};

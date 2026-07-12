@@ -55,7 +55,7 @@ export default function NotificationsQueuePage() {
 
   const allMessages = allData?.results || (Array.isArray(allData) ? allData : []);
   
-  const pendingMessages = pendingData?.results || (Array.isArray(pendingData) ? pendingData : []);
+  const pendingMessages = (pendingData && !Array.isArray(pendingData)) ? pendingData.results : (Array.isArray(pendingData) ? pendingData : []);
   const readyMessages = allMessages.filter(m => m.status === "APPROVED");
   const historyMessages = allMessages.filter(m => ["SENT", "FAILED", "REJECTED"].includes(m.status));
 
