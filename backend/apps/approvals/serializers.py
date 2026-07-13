@@ -13,8 +13,15 @@ class ApprovalDecisionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CommitteeDecisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommitteeDecision
+        fields = '__all__'
+
+
 class ApprovalWorkflowSerializer(serializers.ModelSerializer):
     decisions = ApprovalDecisionSerializer(many=True, read_only=True)
+    committee_decision = CommitteeDecisionSerializer(read_only=True)
     application_number = serializers.CharField(
         source='application.application_number', read_only=True
     )
@@ -45,9 +52,3 @@ class ApprovalWorkflowSerializer(serializers.ModelSerializer):
             return obj.application.ai_recommendation.recommendation_type
         except Exception:
             return None
-
-
-class CommitteeDecisionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CommitteeDecision
-        fields = '__all__'

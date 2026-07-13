@@ -98,22 +98,27 @@ class RoleBasedDashboardView(APIView):
             return Response(DashboardService.get_overview())
 
         elif role in ['branch_manager']:
+            overview = DashboardService.get_overview()
             portfolio = DashboardService.get_portfolio()
             arrears = DashboardService.get_arrears_distribution()
             default_rate = DashboardService.get_default_rate()
-            return Response({**portfolio, **arrears, **default_rate})
+            return Response({**overview, **portfolio, **arrears, **default_rate})
 
         elif role == 'risk_analyst':
             return Response(DashboardService.get_overview())
 
         elif role == 'collections_officer':
-            return Response(DashboardService.get_arrears_distribution())
+            overview = DashboardService.get_overview()
+            arrears = DashboardService.get_arrears_distribution()
+            return Response({**overview, **arrears})
 
         elif role == 'compliance_officer':
             return Response(DashboardService.get_fraud_report())
 
         elif role == 'finance_staff':
-            return Response(DashboardService.get_disbursement_summary())
+            overview = DashboardService.get_overview()
+            disbursement = DashboardService.get_disbursement_summary()
+            return Response({**overview, **disbursement})
 
         else:
             # Loan officers see their own pipeline stats

@@ -66,9 +66,20 @@ class AllPendingView(generics.ListAPIView):
     permission_classes = [IsBranchManager | IsRiskAnalyst | IsCreditCommittee]
 
     def get_queryset(self):
-        return ApprovalWorkflow.objects.exclude(
-            status__in=['APPROVED', 'REJECTED']
-        ).select_related('application')
+        qs = ApprovalWorkflow.objects.all().select_related('application')
+        status_param = self.request.query_params.get('status')
+        
+        if status_param:
+            if status_param == 'PENDING':
+                qs = qs.filter(status__in=['PENDING_RISK_REVIEW', 'PENDING_MANAGER_REVIEW', 'PENDING_COMMITTEE'])
+            elif status_param == 'ESCALATED':
+                qs = qs.filter(status='PENDING_COMMITTEE')
+            else:
+                qs = qs.filter(status=status_param)
+        else:
+            qs = qs.exclude(status__in=['APPROVED', 'REJECTED'])
+            
+        return qs.order_by('-created_at')
 
 
 # RISK ANALYST DECISION 
@@ -129,10 +140,7 @@ class RiskAnalystDecisionView(APIView):
         )
         
         # Log human decision
-        ai_recommendation = getattr(
-            getattr(application, 'ai_recommendation', None),
-            'recommendation_type', ''
-        )
+        ai_recommendation = application.ai_recommendation.recommendation_type if hasattr(application, 'ai_recommendation') else ''
         log_human_decision(
             officer=request.user,
             decision_type='LOAN_APPROVAL',
@@ -235,10 +243,7 @@ class BranchManagerDecisionView(APIView):
         )
         
         # Log human decision
-        ai_recommendation = getattr(
-            getattr(application, 'ai_recommendation', None),
-            'recommendation_type', ''
-        )
+        ai_recommendation = application.ai_recommendation.recommendation_type if hasattr(application, 'ai_recommendation') else ''
         log_human_decision(
             officer=request.user,
             decision_type='LOAN_APPROVAL',
@@ -405,7 +410,7 @@ class CommitteeVoteView(APIView):
 # APPROVAL HISTORY
 
 class ApprovalHistoryView(APIView):
-    permission_classes = [IsRiskAnalyst]
+    permission_classes = [IsRiskAnalyst | IsCreditCommittee]
 
     def get(self, request, loan_id):
         try:
